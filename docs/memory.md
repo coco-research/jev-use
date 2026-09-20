@@ -567,8 +567,8 @@ warns about the pattern in general rather than about that one instance.
 **Two decisions worth keeping:**
 
 1. **`~` is expanded when used and never when written.** The first cut expanded paths on
-   load, so the first `set` rewrote `~/.local/bin/...` as `/Users/someone/...` and the
-   file stopped being portable. Load now returns exactly what is on disk, `effective()`
+   load, so the first `set` rewrote `~/.local/bin/...` as an absolute path under one
+   machine's home directory, and the file stopped being portable. Load now returns exactly what is on disk, `effective()`
    applies expansion and the environment, and only callers that act ask for it.
 2. **A broken settings file does not break dictation.** The hook is on the paste path, so
    a file that does not parse is logged and defaults are used for that run. The loud
