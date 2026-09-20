@@ -93,3 +93,30 @@ numbers came from real runs and are not stylistic.
 `docs/memory.md` is not a diary. It records **decisions with reasons** and **dead ends
 worth not repeating**. If you spent an hour discovering that a hypothesis was wrong, that
 sentence saves the next agent the hour.
+
+## 7. A question is filed, not asked in the transcript
+
+**If you need a decision from a human, file it. Do not ask it in prose and keep going.**
+
+```bash
+jev-ask ask "which front end produced this build?" \
+    --option "the Vite app" --option "the bridge" \
+    --default "the Vite app" --blocks "reproducing the rendering bug" --expires-in 48
+```
+
+The reason is measured, not stylistic. Across this machine's turn log, of 95 agent turns
+that ended on a question: **16% were answered promptly**, 56% were followed by a message
+that shared no vocabulary with the question, and 5% were never followed by anything. Of the
+31 that were a real decision for the human, 45% went unanswered.
+
+A question asked into a queue that does not wait is not a question, it is a comment: no id,
+no age, nothing attached that says what it holds up. So:
+
+- **Always pass `--blocks`** when work is waiting on the answer. That is what makes the queue
+  hold instead of quietly proceeding on an assumption nobody approved (rule R10, one level up).
+- **Always pass a `--default`.** Silence then resolves instead of rotting, and the fast path
+  for the human is one keystroke.
+- **Then stop that work.** Do not guess an answer to keep moving.
+- `jev-ask gate` exits 2 while something is held. Run it before starting the next item.
+
+The log is `~/.config/jev-use/decisions.jsonl`, append-only, outside every repository.

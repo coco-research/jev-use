@@ -1,0 +1,21 @@
+[package]
+name = "jev-ask"
+description = "Questions that wait for a human instead of scrolling away, and a gate the queue has to pass."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "jev-ask"
+path = "src/main.rs"
+
+[dependencies]
+# JSON lines, because the store is append-only and a human will read it with `tail` at some
+# point. One line per event also means a partial write can only ever damage the last line.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
