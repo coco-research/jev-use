@@ -1,5 +1,9 @@
 # AGENTS.md - read this before touching anything
 
+**Taking this repo over? Read `docs/handoff.md` first.** It is the entry point a new agent
+starts from: what exists, what is in flight, what is open, what to verify, and which side
+of the ownership boundary this repo is on.
+
 Rules for any agent working in this repo. They are not suggestions.
 
 ## 0. The five documents, and when each is authoritative
