@@ -674,22 +674,34 @@ up editing different copies of the same file.**
 1. **A path with spaces is fine but must be quoted.** The app runs the script through
    `Command::new(path)` - no shell - so spaces are harmless there; every script of ours that
    references it must quote it.
-2. **The end-to-end paste test failed twice after the move, for two different reasons
-+   that were both the TEST's fault, not the product's.** Getting this right took three
-+   runs, and the distinction is the useful part:
+2. **The paste test failed intermittently, and every failure was FOCUS - not the hook.**
++   Diagnosing this took three attempts, and the two wrong answers were both convincing,
++   which is why the whole sequence is here:
 +
-+   - Failure 1: an empty document and no paste. The test created a TextEdit document and
-+     pasted 0.17 s later, sometimes before the document was ready. The hook had run and
-+     logged correctly; the clipboard *did* receive the text, and a standalone Cmd+V *did*
-+     land, which is how the halves were separated.
-+   - Failure 2: the text was there, with junk around it. A leftover document from an
-+     earlier debug keystroke was still open, so an exact-match assertion reported a
-+     failure that looked like a broken hook.
++   - Explanation 1, wrong: "the document was not ready yet."
++   - Explanation 2, partly true and still wrong: "a leftover document made the assertion
++     false-fail."
++   - What actually happened, from instrumenting the failing case rather than reasoning
++     about it:
 +
-+   The harness now **asserts its own starting state** - every document closed, the front
-+   one empty - before it measures anything. Three consecutive runs then matched at 0.15-0.16 s.
-+   A test that cannot describe its starting state will eventually report a failure that is
-+   worse than useless: a false one, about code that works.
++     ```
++     run 3: front before=PI-Desktop after=PI-Desktop doc=[] clip=[probe-3] MISSED
++     ```
++
++     Focus was taken by PI-Desktop - the app running the agent - before the keystroke was
++     sent. The clipboard write succeeded in **every** run, including the failing ones. A
++     paste goes to whatever is frontmost *when the keystroke is sent*, not when the test
++     starts.
++
++   - The fix is in the harness: assert the document is empty **and** re-check frontmost
++     immediately before running, retrying rather than reporting a false failure. Five
++     consecutive runs then matched on the first attempt at 0.14-0.17 s.
++   - **The product implication, stated plainly:** dictation lands wherever focus is at
++     paste time. That is inherent to a clipboard-plus-keystroke design - CoCo Voice's own
++     `ctrl_v` method has exactly the same property - and it is worth knowing rather than
++     discovering.
++   - The lesson: two plausible explanations were accepted before the failing case was
++     instrumented. The instrumented run was one command and settled it.
 
 ## Dead ends - do not repeat these
 
