@@ -118,7 +118,8 @@ The live board. Every PR updates this file.
   - **Always exits 0**, including on a missing transcript, a bad `--mode`, and an unknown
     flag (which fails closed rather than pasting the flag as text). A non-zero exit is
     reported by CoCo Voice as a paste failure.
-  - **Installed:** binary at `~/.local/bin/jev-voice-hook`. **Not switched on:** the app
-    still has `paste_method: ctrl_v`. Turning it on replaces typing, so it is the owner's
-    call - and the hook has to be live before dictation depends on it. See `docs/memory.md`
-    D13.
+  - **Installed and switched on:** binary at `~/.local/bin/jev-voice-hook`; Coco Voice
+    now runs `paste_method: external_script` pointed at `scripts/voice-hook`, and its own
+    log confirms it loaded that. Verified under a GUI-like minimal environment
+    (`env -i`, `PATH=/usr/bin:/bin`): exit 0, 0.28 s, text byte-identical. Rollback and
+    the one remaining human-only check are in `docs/memory.md` D13.
