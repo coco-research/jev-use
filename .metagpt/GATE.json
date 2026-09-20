@@ -1,7 +1,7 @@
 {
-  "repo": "/Users/rijulkalra/code/jev-use",
+  "repo": "jev-use",
   "remote": "coco-research/jev-use",
-  "visibility": "private",
+  "visibility": "public",
   "intent": "Build a voice-driven control layer for macOS where Jev is the universal fallback rather than the router. The immediate goal is the Rust port of the proven Python accessibility driver, at parity, so that nothing downstream rests on code that cannot be verified. Emma, the voice front end, follows on top once the observation and execution layers are trustworthy.",
   "task_index": 0,
   "index": "done",
@@ -16,6 +16,6 @@
   "notes": [
     "prd, arch and plan are drafted from the interview and are awaiting owner review. The gate is at prd.",
     "CI is green from the first commit: 9 tests, clippy clean, fmt clean.",
-    "The repo is private because the documents describe machine layout, project names, the routing policy and key names."
+    "The repo went public on 2026-09-20: Actions is free and unlimited for public repositories, and the private budget was exhausted. The sensitive parts were scrubbed first - private project names became generic examples, secret-store paths were genericised, and an absolute path became relative. Licensed Apache-2.0."
   ]
 }

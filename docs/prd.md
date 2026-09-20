@@ -24,7 +24,7 @@ way to make it deterministic with prose.
 **Fix:** wire the pipeline. A hotkey is a fact, not a suggestion.
 
 ### P2 - State is scattered
-"What is Coco Code doing" means opening an app, finding a thread, reading it. The answer
+"What is payments-api doing" means opening an app, finding a thread, reading it. The answer
 usually already exists in a database or a git repo.
 
 **Fix:** a capability registry. Query the source directly.
@@ -58,7 +58,7 @@ voice -> intent -> does a purpose-built capability exist?
            run it (50 ms)   +--> JEV (0.5-2 s/step, any app, any screen)
 ```
 
-Most requests are queries, not agent tasks. Measured: *"what is the status on Coco Code"*
+Most requests are queries, not agent tasks. Measured: *"what is the status on payments-api"*
 answered in about 50 ms from SQLite plus one git call - no AX walk, no screenshot, no
 vision model, no Jev.
 
@@ -71,15 +71,15 @@ matters.
 ### Group A - READ: answer from data (~50 ms). No Jev.
 | You say | Source | Status |
 | --- | --- | --- |
-| "Status on Coco Code" | project DB + git | **proven** |
+| "Status on payments-api" | project DB + git | **proven** |
 | "What did I work on yesterday?" | last-opened timestamps | **proven**, data already exists |
-| "Any uncommitted work in Hermes?" | git status | **proven** |
+| "Any uncommitted work in web-dashboard?" | git status | **proven** |
 | "What is running right now?" | process list | trivial |
 
 Highest value, lowest effort. **This is v0.1.**
 
 ### Group B - LAUNCH: open or focus (~200 ms)
-"Open Coco Code" - "Switch to Terminal" - "Show me the Hermes folder"
+"Open payments-api" - "Switch to Terminal" - "Show me the downloads folder"
 
 Resolve a name to a path, launch or focus. Jev only if the app is not in the registry.
 
@@ -97,7 +97,7 @@ app this means bundling a browser or launching Chrome with a flag - a real scope
 decision, not a detail.
 
 ### Group E - WATCH: proactive (deferred)
-"Tell me when Hermes finishes." Buildable, but it is a daemon that runs without you.
+"Tell me when the build finishes." Buildable, but it is a daemon that runs without you.
 Out of v1.
 
 ## 6. The measured constraints

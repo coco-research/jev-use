@@ -6,7 +6,7 @@ members = ["crates/jev-ax"]
 version = "0.0.1"
 edition = "2021"
 rust-version = "1.75"
-license = "UNLICENSED"
+license = "Apache-2.0"
 publish = false
 
 [workspace.lints.rust]

@@ -40,7 +40,7 @@ if Xcode is installed later.
 
 **Chosen:** a capability registry first; Jev for anything with no built-in path.
 
-**Why:** the flagship use case - *"what is the status on Coco Code"* - was answered in
+**Why:** the flagship use case - *"what is the status on payments-api"* - was answered in
 about **50 ms** from SQLite plus one git call. No AX walk, no screenshot, no vision model,
 no Jev. Making that an LLM call would be slower and worse.
 
@@ -55,10 +55,31 @@ imported by path.
 validates the answer against the candidates offered. Only its browser layer is
 CDP-specific. Forking it would let the two drift.
 
-### D5 - Repo is private (2026-09-19)
+### D5 - Repo went public, because CI is free that way (2026-09-20)
 
-**Why:** the documents describe machine layout, project names, the routing policy, and
-key names. Other `coco-research` repos are public; this one should not be until scrubbed.
+**Superseded D5 (2026-09-19): "Repo is private."** It was private for one day, on the
+reasoning that the documents describe machine layout and project names. That reasoning was
+half right, and the cost turned out to be larger than the benefit.
+
+**Why it flipped:**
+
+1. **GitHub Actions is free and unlimited for public repositories.** The private repo
+   could not run CI at all - the account's budget was exhausted (see D7). Going public
+   restores CI immediately, on any runner including macOS.
+2. **The sensitive parts were scrubable in about twenty minutes.** Private project names
+   became generic examples, secret-store paths were genericised, and an absolute path
+   became relative. That is a small one-time cost against an ongoing CI budget problem.
+3. **A project like this is worth other people finding.** A Rust accessibility driver
+   paired with a fast selection model is unusual, and the measured numbers in
+   `reference/README.md` are the kind of thing that saves someone else a week.
+
+**What did not need scrubbing:** the account name, because it is in the repository URL
+regardless, and the machine specification (an M1 with 16 GB), because that is the
+performance baseline a contributor needs to interpret the numbers.
+
+**Licence:** Apache-2.0. Chosen over MIT for the explicit patent grant, at some cost in
+familiarity. This matters because the project depends on other people's models and
+drivers, and a public repo with no licence is legally untouchable.
 
 ### D6 - CI runs three jobs, and lint fails fast (2026-09-19)
 
@@ -78,7 +99,7 @@ triggers are **manual**, because it cannot run.
 *"The job was not started because an Actions budget is preventing further use."*
 
 **My first diagnosis was wrong, and the correction matters.** I assumed it was the
-macOS multiplier, since `coco-research/coco` and `coco-connect` run CI fine - but those
+macOS multiplier, since other repos in the same account run CI fine - but those are
 are **public**, and public repos get unlimited Actions minutes. I switched the runner to
 `ubuntu-latest` at 1x, pushed again, and it **still failed with the same message.** So
 the budget is exhausted outright, not merely expensive. Do not re-litigate this by

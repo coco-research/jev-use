@@ -25,9 +25,9 @@ Recorded: push-to-talk on a single key. No wake word, no chat window.
 
 ## Q3 - Give me the flagship example.
 
-> "I am working on 10 different projects - Coco, Hermes, NG, Coco Code. I can just say,
-> hey Emma, what is the status on Coco Code? Can you open the particular app we were
-> working on yesterday and check what it is."
+> "I am working on 10 different projects. I can just say, hey Emma, what is the status on
+> payments-api? Can you open the particular app we were working on yesterday and check
+> what it is."
 
 **This answer reshaped the architecture.** It is a *read* task, not an action task. Built
 and measured during the interview: the answer came from a SQLite query plus one git call

@@ -34,7 +34,7 @@ The pill is the whole UI for v0.1. Everything else is settings.
 
 ```
 +-----------------------------------------------+
-|  (())  "what is the status on coco code"       |   <- live transcript, streaming
+|  (())  "what is the status on payments-api"    |   <- live transcript, streaming
 +-----------------------------------------------+
 ```
 
@@ -42,7 +42,7 @@ Then, on release, it becomes the answer:
 
 ```
 +-----------------------------------------------+
-|  cococode - main - 4 uncommitted files         |
+|  payments-api - main - 4 uncommitted files     |
 |  last commit 20h ago: "feat(hooks): fail..."   |   <- the answer, not a summary of it
 |  1 session "Brain" - grok-4.6 - 10383 turns    |
 +-----------------------------------------------+

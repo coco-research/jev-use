@@ -119,8 +119,8 @@ See `docs/design.md`.
 | History | what was asked, what happened | local SQLite |
 | Settings | hotkey, voice, model | local file |
 
-**No secrets in this repo, ever.** The app reads keys from the existing stores by path
-(`~/.secrets/ai-keys.env`, `~/.pi/agent/auth.json`) and never copies them.
+**No secrets in this repo, ever.** The app reads keys from a local secret store that lives
+outside this repository, by path, and never copies them anywhere.
 
 ## 8. Error handling
 

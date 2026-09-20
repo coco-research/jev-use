@@ -91,10 +91,9 @@ caller knows the tree is incomplete rather than assuming it saw everything.
 
 **Enforced by:** review, and the PR checklist
 
-**Why it matters:** keys live in `~/.secrets/ai-keys.env` and `~/.pi/agent/auth.json`.
-The app **reads them by path and never copies them**. Nothing in this repo stores,
-prints, or transmits a key. The existing gateway returns `x-litellm-model-api-base` on
-every response, so a fallback is visible rather than silent.
+**Why it matters:** keys live in a local secret store outside this repository. The app
+**reads them by path and never copies them**. Nothing in this repo stores, prints, or
+transmits a key, and no key path belongs in a committed file.
 
 ---
 

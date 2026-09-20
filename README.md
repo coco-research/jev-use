@@ -13,7 +13,7 @@ Three separate problems that look like one:
 | # | Problem | Today's cost |
 | --- | --- | --- |
 | 1 | **The model is the router.** Every agent run re-decides whether to use Jev, and can choose Playwright instead. | Prose in a config file, hoping it is followed |
-| 2 | **State is scattered across ~8 apps.** "What is Coco Code doing" means opening an app, finding a thread, reading it. | Minutes per question, by hand |
+| 2 | **State is scattered across ~8 apps.** "What is payments-api doing" means opening an app, finding a thread, reading it. | Minutes per question, by hand |
 | 3 | **No single control surface.** Browser, editor, terminal, files, git - separate contexts. | Context-switch tax all day |
 
 Only problem 1 needs Jev. The rest is queries and routing. That distinction is the whole
@@ -29,7 +29,7 @@ voice -> intent -> does a purpose-built capability exist?
           run it (50 ms)   +--> JEV (0.5-2 s/step, any app, any screen)
 ```
 
-Most questions are queries, not agent tasks. "Status on Coco Code" is a SQLite read that
+Most questions are queries, not agent tasks. "Status on payments-api" is a SQLite read that
 takes about 50 ms. Making that an LLM call would be slower and worse. Jev's job is the
 **long tail** - anything without a built-in.
 
@@ -59,4 +59,18 @@ without a passing run is not reviewable - see `.github/pull_request_template.md`
 
 ## Licence
 
-UNLICENSED. Private. Not for distribution.
+Apache-2.0. Chosen over MIT for the explicit patent grant, which matters for a project
+that depends on other people's models and drivers. See `LICENSE`.
+
+## Relationship to other projects
+
+To avoid any confusion about what is official:
+
+- **Jev** is TypeSafe's System One model. It is not ours, and this repo does not wrap or
+  fork it.
+- **`browser-use/jev-ultrafast`** is the upstream project this repo's browser counterpart
+  comes from. The decision layer is **imported from it, never modified**. This repo is
+  not an official Browser Use or TypeSafe project.
+- **What is ours** is `crates/jev-ax`: the macOS Accessibility observation and execution
+  layer, written in Rust, shaped so that decision layer can drive the desktop instead of
+  a browser.

@@ -4,41 +4,23 @@ name: ci
 # a PR without a passing run is not reviewable.
 #
 # WHY ubuntu, NOT macos:
-#   1. macOS runners bill at 10x. On a private repo sharing an account budget, this
-#      is the difference between CI running and CI being refused outright.
-#   2. GitHub-hosted macOS runners CANNOT test the accessibility code anyway. They
-#      have no logged-in GUI session and no Accessibility permission, so AXUIElement
-#      calls would fail there regardless of the runner.
+#   1. GitHub-hosted macOS runners CANNOT test the accessibility code anyway. They have
+#      no logged-in GUI session and no Accessibility permission, so AXUIElement calls
+#      fail there regardless of runner. AX behaviour is verified LOCALLY, by the
+#      pre-push hook and the parity harness.
+#   2. ubuntu is faster and simpler. The cost argument no longer applies now the repo is
+#      public - Actions is free and unlimited for public repositories - but the
+#      capability argument does, and it is the one that matters.
 #
-# So this workflow tests what is testable in CI: pure logic, types, formatting, lints,
-# docs. AX behaviour against real apps is verified LOCALLY by the pre-push hook and by
-# the parity harness. That split is deliberate - see docs/rules.md R8 and docs/memory.md.
-#
-# The crate is kept free of macOS-only dependencies precisely so this stays possible.
-
-# TRIGGERS ARE MANUAL ON PURPOSE.
-#
-# This account's Actions budget is exhausted, so every push fails with "The job was
-# not started because an Actions budget is preventing further use." That is true even
-# on ubuntu at 1x, so it is not a macOS-multiplier problem.
-#
-# A permanently-red CI is worse than no CI: it trains you to ignore the signal, and
-# then you miss it when it is real. So the gate lives in .githooks/pre-push - local,
-# free, 1.5 s, and able to test accessibility code that no GitHub runner can reach.
-#
-# TO RE-ENABLE on every push, uncomment these two triggers:
-#   push:
-#     branches: [main]
-#   pull_request:
-#     branches: [main]
-#
-# Three ways to get real CI back, cheapest first:
-#   1. Self-hosted runner on this Mac. Free, unlimited, and the only option that can
-#      run the accessibility tests, because it has a GUI session and the permission.
-#      Best technical answer for this project.
-#   2. Make the repo public. Public repos get unlimited Actions minutes.
-#   3. Buy minutes, or upgrade the plan. macOS bills at 10x ubuntu.
+# So this workflow tests what IS testable in CI: pure logic, types, formatting, lints,
+# docs. The crate is deliberately kept free of macOS-only dependencies so this stays
+# true; macOS-only code goes in a cfg(target_os = "macos") module and is covered locally.
+# See docs/rules.md R8 and docs/memory.md D7.
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
