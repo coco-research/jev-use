@@ -15,3 +15,6 @@ name = "jev-voice-hook"
 path = "src/main.rs"
 
 [dependencies]
+# The settings schema: mode, trigger and paths are configuration, and this crate should
+# agree with the settings file rather than keep its own copy of the enum.
+jev-config = { path = "../jev-config" }

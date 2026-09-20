@@ -534,6 +534,56 @@ a new tab"*, release - then `tail -1 ~/Library/Logs/jev-voice-hook.log` should s
 utterance and a `backgrounded pid` line.
 
 
+### D15 - One settings file, one menu, and the bug the doctor found (2026-09-20)
+
+**The problem with "it works if you know how":** configuration was spread over a wrapper
+script, five environment variables and one tool's own JSON file. Nothing was wrong with
+any single piece, and there was nowhere to look. No place showing what is in effect, no
+way to change a value without knowing which of the three mechanisms owns it, and no way
+for somebody who just cloned this to set it up.
+
+**So: one file, one command, one menu.** `~/.config/jev-use/settings.json` holds
+everything, `crates/jev-config` reads and writes it, and the precedence is stated once:
+
+```
+built-in default  <  settings file  <  environment variable  <  command-line flag
+```
+
+| Command | For |
+| --- | --- |
+| `jev-config` | The menu: numbered rows, current value, one key to change |
+| `jev-config show --sources` | Every value, and which layer won |
+| `jev-config set <key> <value>` | Validated write; refuses anything it cannot read back |
+| `jev-config doctor` | The whole chain: hook, driver, log, voice app, wallets, turn log |
+
+**The doctor found a real bug, on this machine, the first time it ran.** The driver was
+configured as the bare name `jev-use`, which resolves through `PATH`. The hook, however,
+is spawned by the voice app - and macOS gives a launched application
+`/usr/bin:/bin:/usr/sbin:/sbin`, not a login shell's `PATH`. `~/.local/bin` is not in it.
+Every voice command would have failed with `cannot run jev-use`, after a transcript that
+looked like it had arrived perfectly. Fixed by storing the absolute path, and `doctor` now
+warns about the pattern in general rather than about that one instance.
+
+**Two decisions worth keeping:**
+
+1. **`~` is expanded when used and never when written.** The first cut expanded paths on
+   load, so the first `set` rewrote `~/.local/bin/...` as `/Users/someone/...` and the
+   file stopped being portable. Load now returns exactly what is on disk, `effective()`
+   applies expansion and the environment, and only callers that act ask for it.
+2. **A broken settings file does not break dictation.** The hook is on the paste path, so
+   a file that does not parse is logged and defaults are used for that run. The loud
+   complaint belongs to `jev-config show` and `doctor`, which nobody's typing depends on.
+
+**What the interface does on purpose:** the menu refuses values it cannot validate
+(`voice.mode` offers the four that exist, `voice.trigger` rejects a multi-word wake
+"word"), re-reads the file after every change so the redraw cannot lie, and prints
+`not created yet` rather than inventing a file. With no terminal attached it degrades to
+`show` instead of blocking on a keypress that will never come.
+
+**Cost, stated:** one more crate (`serde`, `serde_json`) and about 1 100 lines with tests.
+The alternative was documented environment variables, which is what this replaced.
+
+
 ## Dead ends - do not repeat these
 
 ### X1 - Do not try to read a browser page through the accessibility tree (2026-09-19)

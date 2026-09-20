@@ -60,6 +60,7 @@ def env_path(var: str, default: Path) -> Path:
     return Path(os.environ.get(var) or default)
 
 
+SETTINGS = env_path("JEV_SETTINGS_FILE", HOME / ".config" / "jev-use" / "settings.json")
 CONFIG = env_path("JEV_USAGE_CONFIG", HOME / ".config" / "jev-use" / "usage-check.json")
 DB = env_path("JEV_USAGE_DB", HOME / ".pi-desktop" / "pi.sqlite")
 SECRETS = env_path("JEV_KEYS_FILE", HOME / ".secrets" / "ai-keys.env")
@@ -87,6 +88,13 @@ def ssl_ctx():
 
 
 CTX = ssl_ctx()
+
+
+def read_json(p: Path) -> dict:
+    try:
+        return json.loads(p.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
 
 
 def read_env() -> dict:
@@ -176,13 +184,39 @@ def fetch_json(url: str, key: str, timeout: int = 12):
         return json.load(r)
 
 
-def load_config() -> dict:
-    """The operator's own providers. Nothing is assumed when this is absent."""
-    try:
-        return json.loads(CONFIG.read_text())
-    except (OSError, json.JSONDecodeError):
-        return {}
+def apply_paths(paths: dict) -> None:
+    """Let the settings file move a path, without re-editing this script.
 
+    Precedence matches everything else: an environment variable is already in the module
+    constants and wins over the file.
+    """
+    global DB, SECRETS, AUTH, STATE
+    names = {"db": ("DB", "JEV_USAGE_DB"), "keys_file": ("SECRETS", "JEV_KEYS_FILE"),
+             "auth_file": ("AUTH", "JEV_AUTH_FILE"), "state": ("STATE", "JEV_USAGE_STATE")}
+    for name, (const, var) in names.items():
+        value = paths.get(name)
+        if value and not os.environ.get(var):
+            globals()[const] = Path(value).expanduser()
+
+
+
+def load_config() -> dict:
+    """The operator's own providers, from the ONE settings file.
+
+    `~/.config/jev-use/settings.json` is where every setting lives, the `usage` section
+    here - settings spread over several files are settings nobody can find. The older
+    per-tool file still works, so a machine configured before settings.json existed does
+    not break, but it is the fallback and not the destination.
+    """
+    doc = read_json(SETTINGS) or {}
+    usage = doc.get("usage") or {}
+    if usage:
+        return {
+            "wallets": usage.get("providers") or [],
+            "gateway": usage.get("gateway"),
+            "paths": {k: usage.get(k) for k in ("db", "keys_file", "auth_file", "state")},
+        }
+    return read_json(CONFIG) or {}
 
 def wallet_balances(env: dict, cfg: dict) -> list[dict]:
     """Probe the wallets YOU configured, and only those.
@@ -372,12 +406,13 @@ def main() -> int:
     args = ap.parse_args()
 
     env = read_env()
+    cfg = load_config()
+    apply_paths(cfg.get("paths") or {})
     tok = token_usage(args.days)
     if "error" in tok:
         print(f"usage-check: {tok['error']}", file=sys.stderr)
         return 2
 
-    cfg = load_config()
     wallets = wallet_balances(env, cfg) if args.live else []
     health = route_health(env, cfg) if args.live else []
     if args.live and wallets:
