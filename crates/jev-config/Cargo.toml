@@ -1,0 +1,21 @@
+[package]
+name = "jev-config"
+description = "One settings file for everything jev-use reads, and the command that manages it."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "jev-config"
+path = "src/main.rs"
+
+[dependencies]
+# JSON because it is the format the settings file is written in, and because a settings
+# file a user edits by hand should not need a parser nobody has heard of.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

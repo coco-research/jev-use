@@ -10,54 +10,37 @@
 # Cmd+V. If the hook is missing or broken, dictation is broken with it. There is no
 # partial setting.
 #
-# CoCo Voice runs this with the transcript as **argv[1]** and waits for it to exit, so:
-#   - `exec` keeps the process count at one; the app waits on the real hook
+# THIS FILE IS NOT THE CONFIGURATION. It used to be, and that was the problem: settings
+# spread over a wrapper script, some environment variables and a JSON file is settings
+# nobody can find. Everything now lives in one place, with one command to change it:
+#
+#   jev-config                 the settings menu
+#   jev-config doctor          check the whole chain
+#   cat "$(jev-config path)"   the file itself
+#
+# What is left here is the one thing a wrapper must do: forward the transcript exactly as
+# it was received.
+#
+#   - `exec` keeps the process count at one, so the app waits on the real hook
 #   - "$@" forwards the transcript as a single argument: no word splitting, no globbing,
 #     no shell parsing of what you said
 #   - the hook always exits 0, because a non-zero exit is reported as a paste failure
 #
-# CONFIGURATION. Every value below is an environment variable with a default, so this
-# file works on someone else's machine without being edited. Set them wherever the app
-# gets its environment, or edit the defaults here:
+# The two environment variables below still work, for a one-off or a script. They are
+# overrides, not the place to configure things:
 #
-#   JEV_VOICE_HOOK_BIN   the hook binary.
-#                        Default: $HOME/.local/bin/jev-voice-hook
-#                        scripts/install-voice-hook.sh puts it there.
-#   JEV_USE_BIN          what a command is handed to.
-#                        Default: jev-use on PATH, else $HOME/.local/bin/jev-use.
-#                        Point it at your own driver. This repo does not ship one yet
-#                        (T7 will); the Python reference is not the only thing that can
-#                        answer a goal.
-#   JEV_VOICE_MODE       prefix | classify | dictation | command. Default: prefix
-#   JEV_VOICE_TRIGGER    the wake word. Default: emma
-#
-#   --mode prefix      a command only when the utterance opens with the trigger word.
-#                      Exact, so it cannot eat dictation. DEFAULT.
-#   --mode classify    the trigger, or an imperative opening verb ("open", "click",
-#                      "search") under 12 words. Convenient, and a heuristic:
-#                      "send it now" is read as a command.
-#   --mode dictation   never hand anything to Jev. Everything is typed.
-#   --mode command     hand everything to Jev.
-#
-#   --trigger emma     the wake word, matched case-insensitively and ignoring the
-#                      punctuation speech-to-text adds after it ("Emma," / "EMMA!").
-#
-# NO KEYS ARE READ HERE, and no API is called. Whatever your driver does with the goal -
-# and whatever keys that needs - is the driver's business, and yours.
+#   JEV_VOICE_HOOK_BIN   the hook binary
+#                        default: $HOME/.local/bin/jev-voice-hook
+#   JEV_SETTINGS_FILE    the settings file
+#                        default: ${XDG_CONFIG_HOME:-$HOME/.config}/jev-use/settings.json
 #
 # Try it without speaking, safely - this decides and prints, and touches nothing:
 #
 #   scripts/voice-hook --dry-run "Emma, open a new tab"
-#   scripts/voice-hook --dry-run "Dear team, following up on the invoice"
 #
-# The log is ~/Library/Logs/jev-voice-hook.log: one line per utterance, and one per
-# backgrounded run with its exit code.
+# The log is `voice.log` in the settings, by default ~/Library/Logs/jev-voice-hook.log:
+# one line per utterance, and one per backgrounded run with its exit code.
 
 HOOK_BIN="${JEV_VOICE_HOOK_BIN:-$HOME/.local/bin/jev-voice-hook}"
-JEV_BIN="${JEV_USE_BIN:-$(command -v jev-use 2>/dev/null || printf '%s' "$HOME/.local/bin/jev-use")}"
 
-exec "$HOOK_BIN" \
-  --mode "${JEV_VOICE_MODE:-prefix}" \
-  --trigger "${JEV_VOICE_TRIGGER:-emma}" \
-  --jev-use "$JEV_BIN" \
-  "$@"
+exec "$HOOK_BIN" "$@"

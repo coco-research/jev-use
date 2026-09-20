@@ -28,6 +28,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use jev_config::Settings;
 use jev_voice::{decide, Intent, Mode, DEFAULT_TRIGGER};
 
 /// Where Jev lives on this machine. The Python reference, not the Rust port: the port is
@@ -47,9 +48,25 @@ fn main() {
 fn run() -> i32 {
     let args: Vec<String> = std::env::args().skip(1).collect();
 
-    let mut mode = Mode::DEFAULT;
-    let mut trigger = DEFAULT_TRIGGER.to_string();
-    let mut jev_use = JEV_USE.to_string();
+    // Settings first, because they are the surface a user is told to use. A file that does
+    // not parse must NOT break dictation: log it, fall back to defaults, and leave the
+    // loud complaint to `jev-config show` and `jev-config doctor`, which are not on the
+    // paste path.
+    let settings = match Settings::load() {
+        Ok(s) => s.effective(),
+        Err(e) => {
+            log_line(&format!(
+                "settings file unreadable ({e}); using defaults for this run"
+            ));
+            Settings::default().effective()
+        }
+    };
+
+    // Flags start from the settings value rather than from a hardcoded default, so the
+    // precedence is: settings and environment, then whatever this invocation was told.
+    let mut mode = settings.voice.mode;
+    let mut trigger = settings.voice.trigger.clone();
+    let mut jev_use = settings.voice.driver.display().to_string();
     let mut dry_run = false;
     let mut run_command = false;
     let mut transcript: Option<String> = None;
@@ -160,6 +177,9 @@ fn spawn_detached(goal: &str, mode: Mode, trigger: &str, jev_use: &str) -> i32 {
         .arg("--jev-use")
         .arg(jev_use)
         .arg(goal)
+        // Pin the log for the child: if the settings file changes while a Jev run is in
+        // flight, its result should still land beside the utterance that started it.
+        .env("JEV_VOICE_LOG", log_path())
         .stdin(Stdio::null())
         .stdout(Stdio::from(log))
         .stderr(match err {
@@ -273,9 +293,23 @@ fn notify(message: &str) {
         .output();
 }
 
+/// Where the log goes: `voice.log` from the settings, overridable by `JEV_VOICE_LOG`.
+///
+/// Read from the settings rather than remembered, because "where did it write" is the
+/// first question anyone asks when a hook misbehaves.
 fn log_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| FALLBACK_HOME.to_string());
-    Path::new(&home).join("Library/Logs/jev-voice-hook.log")
+    if let Ok(p) = std::env::var("JEV_VOICE_LOG") {
+        if !p.trim().is_empty() {
+            return PathBuf::from(p);
+        }
+    }
+    match Settings::load() {
+        Ok(s) => s.effective().voice.log,
+        Err(_) => {
+            let home = std::env::var("HOME").unwrap_or_else(|_| FALLBACK_HOME.to_string());
+            Path::new(&home).join("Library/Logs/jev-voice-hook.log")
+        }
+    }
 }
 
 /// Append one line, stamped in UTC. Never fails loudly: logging is for us, not the user.

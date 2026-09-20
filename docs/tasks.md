@@ -140,3 +140,20 @@ The live board. Every PR updates this file.
   - Result: `repo-check` went from one gap to `COMPLIANT every check passed`.
   - Open question for the owner: promote the rule to `docs/rules.md` **R11**? That file
     requires explicit approval for a rule change, so it is not an agent's call. See D14.
+
+- [x] **T17 - Settings, in one place, with a menu** - `crates/jev-config` + `jev-config`.
+  - One file (`~/.config/jev-use/settings.json`), one command, one precedence:
+    default < file < env var < flag. `show --sources` prints which layer won, per value.
+  - `jev-config` with no arguments is a menu: numbered rows, current value, one key to
+    change, with closed sets offered rather than guessed at. Not attached to a terminal it
+    degrades to `show` instead of blocking.
+  - `doctor` checks hook, driver, log, voice app, wallets and turn log in one command.
+    **It found a live bug immediately:** the driver was the bare name `jev-use`, which
+    resolves on a shell `PATH` but not on the `/usr/bin:/bin:/usr/sbin:/sbin` a launched
+    app gets - so every voice command would have failed silently after a perfect
+    transcript. Fixed, and the pattern is now a check rather than an anecdote.
+  - The wrapper script stopped being the configuration; it is one `exec` and a warning.
+  - `~` is expanded when used, never when written, so the file stays portable. A settings
+    file that does not parse is logged and ignored *for that run*: the hook is on the
+    paste path and must not break dictation.
+  - See `docs/memory.md` D15.

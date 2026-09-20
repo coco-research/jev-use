@@ -27,54 +27,14 @@
 //! between speaking and seeing text. [`decide`] is a string match, which is microseconds.
 
 /// How an utterance is routed.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Mode {
-    /// A command only when the trigger word opens the utterance. Exact, so it cannot eat
-    /// dictation. **The default.**
-    Prefix,
-    /// The trigger opens a command, and otherwise an imperative opening verb is treated
-    /// as a command too. Convenient, and a heuristic.
-    Classify,
-    /// Everything is typed. For a session where nothing should ever reach Jev.
-    Dictation,
-    /// Everything is a command.
-    Command,
-}
-
-impl Mode {
-    /// The mode used when nothing says otherwise.
-    pub const DEFAULT: Self = Self::Prefix;
-
-    /// Parse a mode name, as accepted on the command line or in the wrapper script.
-    #[must_use]
-    pub fn parse(s: &str) -> Option<Self> {
-        match s.trim().to_ascii_lowercase().as_str() {
-            "prefix" => Some(Self::Prefix),
-            "classify" => Some(Self::Classify),
-            "dictation" => Some(Self::Dictation),
-            "command" => Some(Self::Command),
-            _ => None,
-        }
-    }
-}
-
-impl std::fmt::Display for Mode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            Self::Prefix => "prefix",
-            Self::Classify => "classify",
-            Self::Dictation => "dictation",
-            Self::Command => "command",
-        };
-        f.write_str(s)
-    }
-}
-
-/// The word that turns an utterance into a command in [`Mode::Prefix`].
 ///
-/// "emma" because that is the name of the voice front end in `docs/prd.md`, so the
-/// spoken form and the thing doing the work are the same word.
-pub const DEFAULT_TRIGGER: &str = "emma";
+/// Defined in [`jev_config`] rather than here, because it is a setting first and a
+/// behaviour second: the settings file has to validate it without linking the code that
+/// acts on it, and two definitions of the same enum would eventually disagree.
+pub use jev_config::Mode;
+
+/// The wake word used when nothing is configured.
+pub use jev_config::DEFAULT_TRIGGER;
 
 /// Verb that opens an imperative utterance in [`Mode::Classify`].
 ///
@@ -416,15 +376,5 @@ mod tests {
         assert!(long.split_whitespace().count() > MAX_COMMAND_WORDS);
         assert!(matches!(c(long), Intent::Command(_)));
         assert!(matches!(c("Emma, should we open it?"), Intent::Command(_)));
-    }
-
-    #[test]
-    fn mode_names_round_trip() {
-        for mode in [Mode::Prefix, Mode::Classify, Mode::Dictation, Mode::Command] {
-            assert_eq!(Mode::parse(&mode.to_string()), Some(mode));
-        }
-        assert_eq!(Mode::parse(" CLASSIFY "), Some(Mode::Classify));
-        assert_eq!(Mode::parse("clever"), None);
-        assert_eq!(Mode::DEFAULT, Mode::Prefix);
     }
 }
