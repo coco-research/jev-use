@@ -80,12 +80,24 @@ printf '\n%sgate%s %s  %s%s file(s) changed%s\n' "$c_bold" "$c_off" \
 RAN=0
 
 # ── Rust ───────────────────────────────────────────────────────────────────
+# A missing tool is an ENVIRONMENT problem, not a code problem. Reporting it as FAIL
+# blames the author for something they did not do, and the message they get is
+# "failed to run command 'cargo'", which reads like their code broke.
+#
+# It is a warning, not a block: blocking would make every push impossible until the
+# toolchain is repaired, and fmt/clippy are still checked by CI on ubuntu.
+has() { command -v "$1" >/dev/null 2>&1; }
+
 if [ -f Cargo.toml ] || [ -f rust-toolchain.toml ]; then
   if changed '\.rs$|Cargo\.(toml|lock)$|rust-toolchain'; then
     RAN=1
-    gate "cargo fmt --check" "$BUDGET" cargo fmt --all -- --check
-    if cargo clippy --version >/dev/null 2>&1; then
-      gate "cargo clippy" "$BUDGET" cargo clippy --workspace --all-targets -- -D warnings
+    if ! has cargo; then
+      skip "rust checks" "cargo not on PATH - environment issue, not code. CI still checks fmt+clippy."
+    else
+      gate "cargo fmt --check" "$BUDGET" cargo fmt --all -- --check
+      if has cargo-clippy || cargo clippy --version >/dev/null 2>&1; then
+        gate "cargo clippy" "$BUDGET" cargo clippy --workspace --all-targets -- -D warnings
+      fi
     fi
   else
     RAN=1

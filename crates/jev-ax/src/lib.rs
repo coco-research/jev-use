@@ -23,6 +23,15 @@
 //! of them invisible menu items. See [`Element::is_addressable`].
 
 #![warn(missing_docs)]
+// This crate wraps Objective-C and Core Foundation. `unsafe` is the interface, not an
+// oversight, so the workspace's `unsafe_code = warn` is allowed here and the reason is
+// documented at each call site instead. Removing this would produce a warning on every
+// FFI call, which trains a reader to ignore the one that matters.
+#![allow(unsafe_code)]
+
+/// App resolution and activation. See the module docs for why the matching logic is
+/// pure while the enumeration is macOS-only.
+pub mod app;
 
 /// Which kind of interaction an element supports.
 ///

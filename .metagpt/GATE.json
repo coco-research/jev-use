@@ -3,20 +3,32 @@
   "remote": "coco-research/jev-use",
   "visibility": "public",
   "intent": "Build a voice-driven control layer for macOS where Jev is the universal fallback rather than the router. The immediate goal is the Rust port of the proven Python accessibility driver, at parity, so that nothing downstream rests on code that cannot be verified. Emma, the voice front end, follows on top once the observation and execution layers are trustworthy.",
-  "task_index": 0,
+  "task_index": 1,
   "index": "done",
   "interview": "done",
-  "prd": "draft",
-  "arch": "draft",
-  "plan": "draft",
-  "build": "blocked",
-  "blocked_by": "Owner review. prd, arch and plan are drafted but unapproved, so build cannot start. T1 is DONE - the objc2 spike answered yes, so the dependency risk that used to block here is gone.",
+  "prd": "approved",
+  "arch": "approved",
+  "plan": "approved",
+  "build": "in_progress",
+  "blocked_by": null,
   "ripwire": "n/a",
   "cartographer": "n/a",
+  "approvals": {
+    "approvedAt": "2026-09-20",
+    "approvedBy": "owner",
+    "decisions": [
+      "Jev is the FALLBACK, not the primary. Most requests are queries answered in ~50ms from structured data; Jev exists for the long tail with no direct path.",
+      "v0.1 is Group A only - voice to answer about projects. No Jev, no AX permission, no Rust port required.",
+      "The ten invariants R1-R10 stand as written, each carrying the measurement that justifies it.",
+      "UI is Tauri, not SwiftUI. Liquid Glass needs Xcode 26; this machine has SDK 11.3 and Swift 5.4. Reversible if Xcode is installed later.",
+      "Desktop latency of 0.5-2s per step is accepted and is stated in the PRD so the product cannot promise browser speed for desktop work."
+    ]
+  },
   "notes": [
-    "T1 answered YES on 2026-09-20: objc2-application-services exposes all four AX entry points and they were called against five live apps. The accessibility-sys fallback is dropped. Evidence in docs/memory.md D8.",
+    "Gate cleared 2026-09-20. prd, arch and plan approved by the owner; build unblocked. T2 is now in progress.",
+    "T1 answered YES: objc2-application-services exposes all four AX entry points and they were called against five live apps. The accessibility-sys fallback is dropped. Evidence in docs/memory.md D8.",
     "CI is green: 9 tests, clippy clean, fmt clean, on a real GitHub runner (public repo = free Actions).",
-    "The repo went public on 2026-09-20: Actions is free and unlimited for public repositories, and the private budget was exhausted. The sensitive parts were scrubbed first - private project names became generic examples, secret-store paths were genericised, and an absolute path became relative. Licensed Apache-2.0.",
-    "Unchanged: prd, arch and plan are still drafts awaiting owner review. The gate is at prd, and the next real task is T2."
+    "KNOWN CI GAP, not yet closed: macOS-only code cannot be compiled or tested on an ubuntu runner, so it is covered by the local pre-push hook only. A self-hosted runner IS available on this machine (coco-mac-local, online for coco, coco-connect, coco-hermes, coco-m0) but is not registered for this repo. Registering it would close the gap.",
+    "Docs live in docs/: prd, architecture, rules, design, tasks, memory, plus repo-playbook and jev-for-agents."
   ]
 }
