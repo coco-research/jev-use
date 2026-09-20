@@ -43,6 +43,14 @@ pub mod attrs;
 /// pure while the enumeration is macOS-only.
 pub mod app;
 
+/// The walk: one observation of an app's accessibility tree, and its fingerprint.
+///
+/// Unlike `attrs`, this module is **not** gated as a whole. The walk's decisions - which
+/// role becomes which [`Kind`], what a label falls back to, whether a node earns an index,
+/// and the order children are visited in - are pure functions that run in CI on any
+/// platform. What needs the accessibility API is one `macos` module inside it, and the
+/// entry point it exposes, `walk::observe`, exists only on macOS.
+pub mod walk;
 /// Which kind of interaction an element supports.
 ///
 /// Maps onto the operations Jev chooses from: `fill` becomes `TYPE_TEXT`, `select`
@@ -72,11 +80,34 @@ pub struct Element {
     /// Raw accessibility role, e.g. `AXButton`. Kept verbatim for parity checks.
     pub role: String,
     /// Current value, if any.
+    ///
+    /// Capped at 200 characters, because the reference truncates before it hashes or
+    /// compares (`ax.py:332`), and a longer value would change the fingerprint.
     pub value: Option<String>,
     /// Screen rectangle in points, if the element is displayed.
     pub rect: Option<Rect>,
     /// Whether `AXValue` accepted a write. `false` means type real keystrokes instead.
     pub settable: bool,
+    /// The choices a `select` element offers, in the order the app reports them.
+    ///
+    /// Only a [`Kind::Select`] element fills this, and an empty list is a legitimate
+    /// answer: a closed popup keeps its items under its own children, so the walk says
+    /// there are none rather than inventing a list. It is modelled at all because parity
+    /// compares one element key by key and the reference emits `"options": []`
+    /// (`ax.py:333-343`).
+    pub options: Vec<String>,
+    /// A `select` element's current text, from the same read as [`Self::value`].
+    pub current_value: Option<String>,
+    /// `AXSelected`, when the element reports it.
+    ///
+    /// `None` means the attribute was absent or unreadable, which is not `false`: the same
+    /// distinction rule R1 rests on for `AXEnabled`.
+    pub selected: Option<bool>,
+    /// A checkbox or radio button's `AXValue` as a state, when it arrived as a number.
+    ///
+    /// `None` when it did not: the reference refuses to invent a state from a value that is
+    /// not a number (`ax.py:350`), and so does this.
+    pub checked: Option<bool>,
 }
 
 /// A screen rectangle in points.
@@ -134,6 +165,18 @@ impl Element {
             Some(r) => r.is_on_screen(bounds),
             None => false,
         }
+    }
+
+    /// Whether the executor must type into this element rather than write `AXValue`.
+    ///
+    /// Derived rather than stored. The reference sets `entry["typeable"] = True` exactly
+    /// when `kind == "fill" and not settable` (`ax.py:315-318`), so a field would only be a
+    /// second place for the two to disagree. Rule R4 is why the signal exists: the write is
+    /// tried first, and keystrokes are the fallback for a rich-text or web-backed editor
+    /// that refuses it.
+    #[must_use]
+    pub fn typeable(&self) -> bool {
+        self.kind == Kind::Fill && !self.settable
     }
 }
 
@@ -248,9 +291,12 @@ mod tests {
             value: None,
             rect,
             settable: false,
+            options: Vec::new(),
+            current_value: None,
+            selected: None,
+            checked: None,
         }
     }
-
     fn rect(x: f64, y: f64, w: f64, h: f64) -> Rect {
         Rect { x, y, w, h }
     }
@@ -449,5 +495,16 @@ mod tests {
         let (x, y) = rect(100.0, 200.0, 40.0, 20.0).centre();
         assert!((x - 120.0).abs() < f64::EPSILON);
         assert!((y - 210.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn typeable_means_fill_without_a_write() {
+        // The reference's signal to the executor, and the reason rule R4 has a fallback at
+        // all: a fill whose AXValue refused the write must be typed into instead.
+        let mut e = el(Kind::Fill, "Search", None);
+        assert!(e.typeable(), "an unwritable fill is typed into");
+        e.settable = true;
+        assert!(!e.typeable(), "a writable fill takes the AXValue write");
+        assert!(!el(Kind::Click, "Save", None).typeable(), "not a fill");
     }
 }
