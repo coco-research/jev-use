@@ -237,6 +237,17 @@ an ubuntu runner never compiles them. That is deliberate: it keeps the pure logi
 `running_apps` would pass CI and fail at runtime. The mitigation is the local pre-push
 hook, plus the `list_apps` example, which is the live check.
 
+**And it is not only the tests.** `cargo doc` cannot see a module that is gated out
+either, so a broken intra-doc link in `attrs.rs` **passed CI on PR #9** and failed the
+moment the same command ran on this machine. Reproduce what CI would do if it could:
+
+```
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+```
+
+The pre-push hook does not run it, which is why the failure was found by hand rather than
+by the gate. Cheap fix if the hook is worth extending: one more `gate` line.
+
 **The real fix is available and not yet used:** a self-hosted runner is already online on
 this machine (`coco-mac-local`, registered for coco, coco-connect, coco-hermes and
 coco-m0). Registering it for this repo would let CI run the macOS path, because a

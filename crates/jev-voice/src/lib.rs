@@ -114,8 +114,8 @@ pub enum Intent {
 /// # In [`Mode::Classify`]
 ///
 /// The trigger still works, and when it is absent, an utterance is a command if it opens
-/// with a verb from [`IMPERATIVE_VERBS`], is at most [`MAX_COMMAND_WORDS`] words, and is
-/// not a question. That last test matters: "what did you open?" is dictation at the
+/// with a verb from the closed imperative list (`IMPERATIVE_VERBS` in the source), is at
+/// most 12 words, and is not a question. That last test matters:
 /// moment it is spoken, not a command to open something. The rule is still a heuristic -
 /// "send it now" is three words opening with a verb and it is probably dictation - which
 /// is exactly why it is not the default.

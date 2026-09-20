@@ -1,6 +1,6 @@
 //! Typed attribute reads. This is the walk's shopping list.
 //!
-//! Every accessibility read goes through [`raw`], which is the only place `AXError` is
+//! Every accessibility read goes through [`raw`](crate::attrs::raw), which is the only place `AXError` is
 //! interpreted. Everything above it returns a plain Rust type, so `walk.rs` never has to
 //! know that `-25205` (`AttributeUnsupported`) is a normal answer while `-25204`
 //! (`CannotComplete`) means the app is not responding at all.
@@ -14,7 +14,7 @@
 //!
 //! # Parity
 //!
-//! [`as_text`] reproduces what the Python driver produces from pyobjc, including `"True"`
+//! [`as_text`](crate::attrs::as_text) reproduces what the Python driver produces from pyobjc, including `"True"`
 //! rather than `"true"` for a boolean and `"2880.0"` rather than `"2880"` for a whole
 //! float. That is deliberate: rule R8 says the reference is the specification, and a
 //! parity diff should show zero differences rather than a list of near-misses.
