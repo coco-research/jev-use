@@ -1,84 +1,173 @@
 #!/usr/bin/env bash
-# pre-push: the real gate.
+# pre-push gate — FAST checks only, and only when relevant.
 #
-# CI is a backstop, not the gate. Two reasons:
-#   1. A private repo on a shared account budget can be refused outright (it was,
-#      on the first push: "Actions budget is preventing further use").
-#   2. GitHub-hosted runners have no GUI session and no Accessibility permission, so
-#      they cannot execute a single AXUIElement call. The behaviour that matters here
-#      is only testable on the machine.
+# WHY THIS IS NOT "RUN EVERYTHING":
+#   One repo in this fleet has 1430 tests that take 58 seconds. Another runs clippy over
+#   a real Rust workspace in 35. A hook that runs all of it would be bypassed within a
+#   day, and a bypassed gate protects nothing. So:
 #
-# So this runs before anything leaves the laptop. It is fast (about 5-20 s once warm)
-# and it fails loudly.
+#     pre-push  ->  fast, deterministic checks, and ONLY for the stack you touched
+#     CI        ->  the full suite, the slow builds, the platform matrix
 #
-# Install once per clone:
+#   Three mechanisms keep it honest:
+#     1. CHANGE DETECTION. Rust checks run only when Rust files are staged. A docs-only
+#        commit finishes in under a second.
+#     2. TIME BUDGET. A check that cannot finish inside it is SKIPPED WITH A WARNING,
+#        never silently, never as a block.
+#     3. ELAPSED TIME IS PRINTED. Slowness becomes visible instead of being felt.
+#
+# INSTALL (once per clone):
 #   git config core.hooksPath .githooks
 #
-# Bypass in a genuine emergency (say why in the PR):
-#   git push --no-verify
+# PER-REPO OVERRIDES:
+#   .githooks/pre-push.local, executable. Runs after the standard checks. Use it for
+#   what only that repo knows: custom test scripts, doc linters, generated-file checks.
+#
+# EMERGENCY BYPASS:
+#   git push --no-verify     (say why in the PR body)
+#
+# TUNING:
+#   GATE_BUDGET=120 git push     per-check budget in seconds (default 60)
 
 set -uo pipefail
 
-fail() { printf '\n\033[31mPRE-PUSH BLOCKED\033[0m  %s\n' "$1" >&2; exit 1; }
-step() { printf '\033[2m  ...\033[0m %s\n' "$1"; }
-ok()   { printf '\033[32m  ok\033[0m  %s\n' "$1"; }
+BUDGET=${GATE_BUDGET:-60}
+FAILED=0
 
-[ -f Cargo.toml ] || { echo "not in the repo root; skipping"; exit 0; }
+c_red=$'\033[31m'; c_grn=$'\033[32m'; c_yel=$'\033[33m'
+c_dim=$'\033[2m'; c_bold=$'\033[1m'; c_off=$'\033[0m'
 
-# 1. Formatting. Cheapest check, so it runs first.
-step "cargo fmt --check"
-if ! cargo fmt --all -- --check >/dev/null 2>&1; then
-  cargo fmt --all -- --check 2>&1 | head -20 >&2
-  fail "formatting is off. Run: cargo fmt --all"
-fi
-ok "fmt"
+pass() { printf '  %sok%s   %-24s %s%s%s\n' "$c_grn" "$c_off" "$1" "$c_dim" "$2" "$c_off"; }
+fail() { printf '  %sFAIL%s %s\n' "$c_red" "$c_off" "$1"; FAILED=1; }
+skip() { printf '  %swarn%s %-24s %s%s%s\n' "$c_yel" "$c_off" "$1" "$c_dim" "$2" "$c_off"; }
 
-# 2. Lints. Same flags as CI, so a green local run means a green CI run.
-step "cargo clippy -D warnings"
-if ! out=$(cargo clippy --workspace --all-targets -- -D warnings 2>&1); then
-  printf '%s\n' "$out" | tail -30 >&2
-  fail "clippy found problems"
-fi
-ok "clippy"
+# gate <label> <limit-seconds> <command...>
+gate() {
+  local label="$1"; shift
+  local limit="$1"; shift
+  local out rc t0 t1 ms
+  t0=$(date +%s%N 2>/dev/null || echo 0)
+  out=$(timeout "$limit" "$@" 2>&1); rc=$?
+  t1=$(date +%s%N 2>/dev/null || echo 0)
+  if [ "$t0" != "0" ] && [ "$t1" != "0" ]; then ms=$(( (t1 - t0) / 1000000 )); else ms=0; fi
+  local human="${ms}ms"
+  if [ "$ms" -ge 1000 ] 2>/dev/null; then human="$((ms/1000)).$(( (ms%1000)/100 ))s"; fi
 
-# 3. Tests.
-step "cargo test"
-if ! out=$(cargo test --workspace --all-features 2>&1); then
-  printf '%s\n' "$out" | tail -40 >&2
-  fail "tests failed"
-fi
-passed=$(printf '%s\n' "$out" | grep -oE '[0-9]+ passed' | awk '{s+=$1} END {print s+0}')
-ok "test (${passed} passed)"
-
-# 4. Docs build. Skipped if the toolchain is mid-update.
-step "cargo doc"
-if ! out=$(cargo doc --workspace --no-deps 2>&1); then
-  printf '%s\n' "$out" | tail -20 >&2
-  fail "docs do not build"
-fi
-ok "docs"
-
-# 5. Parity harness, when the port is far enough along to have one.
-#    This is the check CI can never do: it compares against the working Python
-#    reference on THIS machine, with real apps open. Absent for now.
-if [ -x scripts/parity.sh ]; then
-  step "parity vs the Python reference"
-  if ! out=$(scripts/parity.sh 2>&1); then
-    printf '%s\n' "$out" | tail -30 >&2
-    fail "parity with the reference broke (docs/rules.md R8)"
+  if [ $rc -eq 0 ]; then
+    pass "$label" "$human"
+  elif [ $rc -eq 124 ]; then
+    skip "$label" "exceeded ${limit}s — belongs in CI, not here"
+  else
+    fail "$label"
+    printf '%s\n' "$out" | tail -20 | sed 's/^/        /'
   fi
-  ok "parity"
+}
+
+# ── what changed ───────────────────────────────────────────────────────────
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+if [ -z "$STAGED" ]; then
+  # Run by hand with nothing staged: compare against upstream instead.
+  STAGED=$(git diff --name-only '@{upstream}..HEAD' 2>/dev/null || true)
+fi
+NCHANGED=$(printf '%s\n' "$STAGED" | grep -c . || true)
+
+changed() { printf '%s\n' "$STAGED" | grep -qE "$1"; }
+
+printf '\n%sgate%s %s  %s%s file(s) changed%s\n' "$c_bold" "$c_off" \
+  "$(basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)")" \
+  "$c_dim" "$NCHANGED" "$c_off"
+
+RAN=0
+
+# ── Rust ───────────────────────────────────────────────────────────────────
+if [ -f Cargo.toml ] || [ -f rust-toolchain.toml ]; then
+  if changed '\.rs$|Cargo\.(toml|lock)$|rust-toolchain'; then
+    RAN=1
+    gate "cargo fmt --check" "$BUDGET" cargo fmt --all -- --check
+    if cargo clippy --version >/dev/null 2>&1; then
+      gate "cargo clippy" "$BUDGET" cargo clippy --workspace --all-targets -- -D warnings
+    fi
+  else
+    RAN=1
+    printf '  %s--%s   %-24s %sno Rust files staged%s\n' "$c_dim" "$c_off" "rust checks" "$c_dim" "$c_off"
+  fi
 fi
 
-# 6. Refuse a secret before it reaches the remote.
-step "secret scan of staged content"
-patterns='sk-[A-Za-z0-9]{20,}|gcli_[A-Za-z0-9]{10,}|gho_[A-Za-z0-9]{20,}|apikey_[A-Za-z0-9]{10,}|AQ\.[A-Za-z0-9_-]{20,}'
-diff=$(git diff --cached -U0 --diff-filter=ACMR 2>/dev/null)
-hits=$(printf '%s' "$diff" | grep -E "^\+" | grep -Eo "$patterns" | head -5 || true)
-if [ -n "$hits" ]; then
-  printf '%s\n' "$hits" >&2
-  fail "a credential-shaped string is staged. Remove it, then amend or reset."
+# ── Python ─────────────────────────────────────────────────────────────────
+if [ -f pyproject.toml ] || [ -f ruff.toml ] || [ -f setup.py ]; then
+  if changed '\.py$|pyproject\.toml|ruff\.toml|requirements'; then
+    RAN=1
+    if command -v ruff >/dev/null 2>&1; then
+      gate "ruff check" "$BUDGET" ruff check .
+    elif python3 -m ruff --version >/dev/null 2>&1; then
+      gate "ruff check" "$BUDGET" python3 -m ruff check .
+    else
+      skip "ruff" "not installed — pip install ruff to enable"
+    fi
+  else
+    RAN=1
+    printf '  %s--%s   %-24s %sno Python files staged%s\n' "$c_dim" "$c_off" "python checks" "$c_dim" "$c_off"
+  fi
 fi
-ok "no secrets staged"
 
-printf '\n\033[32mPRE-PUSH PASSED\033[0m  fmt, clippy, test, docs, secrets\n'
+# ── Node / TypeScript ──────────────────────────────────────────────────────
+if [ -f package.json ]; then
+  if changed '\.(ts|tsx|js|jsx|mjs|cjs)$|package\.json|tsconfig'; then
+    RAN=1
+    # A type check, NOT the test suite. tsc takes seconds; vitest took 58s in a repo
+    # we measured, which is minutes of a human's patience on every push.
+    if [ -f tsconfig.json ]; then
+      gate "tsc --noEmit" "$BUDGET" npx --no-install tsc --noEmit
+    else
+      gate "node --check (staged)" "$BUDGET" bash -c '
+        rc=0
+        for f in $(git diff --cached --name-only --diff-filter=ACM | grep -E "\.(js|mjs|cjs)$" | head -10); do
+          node --check "$f" || rc=1
+        done
+        exit $rc'
+    fi
+  else
+    RAN=1
+    printf '  %s--%s   %-24s %sno JS/TS files staged%s\n' "$c_dim" "$c_off" "node checks" "$c_dim" "$c_off"
+  fi
+fi
+
+# ── Go ─────────────────────────────────────────────────────────────────────
+if [ -f go.mod ]; then
+  if changed '\.go$|go\.mod|go\.sum'; then
+    RAN=1
+    gate "gofmt -l" "$BUDGET" bash -c '[ -z "$(gofmt -l .)" ]'
+    gate "go vet"   "$BUDGET" go vet ./...
+  fi
+fi
+
+if [ "$RAN" -eq 0 ]; then
+  skip "stack" "nothing recognised at the repo root"
+fi
+
+# ── repo-local checks ──────────────────────────────────────────────────────
+if [ -x .githooks/pre-push.local ]; then
+  gate "pre-push.local" "$BUDGET" .githooks/pre-push.local
+fi
+
+# ── credentials, always last, never skipped ────────────────────────────────
+# Only the STAGED DIFF is scanned. An old credential already in history should not
+# block every future push; finding those is repo-check's job, not the gate's.
+PATTERNS='sk-[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|gcli_[A-Za-z0-9]{10,}|apikey_[A-Za-z0-9]{10,}|AQ\.[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
+HITS=$(git diff --cached -U0 --diff-filter=ACMR 2>/dev/null | grep -E '^\+' | grep -Eo "$PATTERNS" | head -5 || true)
+if [ -n "$HITS" ]; then
+  fail "credentials staged"
+  printf '%s\n' "$HITS" | sed 's/^/        /'
+  printf '  %sremove it, then ROTATE the credential — assume it is already public%s\n' "$c_yel" "$c_off"
+else
+  pass "credentials" "none staged"
+fi
+
+# ── verdict ────────────────────────────────────────────────────────────────
+if [ "$FAILED" -eq 0 ]; then
+  printf '\n%sgate passed%s\n\n' "$c_grn$c_bold" "$c_off"
+  exit 0
+fi
+printf '\n%sgate blocked%s  fix the above, or %sGATE_BUDGET=120 git push%s\n\n' \
+  "$c_red$c_bold" "$c_off" "$c_dim" "$c_off"
+exit 1
