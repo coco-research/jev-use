@@ -94,8 +94,17 @@ jobs:
       # No toolchain action on purpose: this runner IS the environment under test - its
       # Xcode, its accessibility grant, its machine. Installing a different toolchain here
       # would be testing a machine nobody uses. Print what it is instead.
-      - name: what is this runner
+      # Two things at once, and both are load-bearing.
+      #
+      # EVIDENCE: this machine IS the thing under test - its macOS version, its Rust, its
+      # accessibility grant - so print them rather than describing them.
+      #
+      # PATH: a launchd-launched runner does not hand steps the user's PATH, so cargo is
+      # installed and still not found. Setting it here is portable (no user's home
+      # directory in a public workflow) and explicit about the reason.
+      - name: environment
         run: |
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
           echo "host:  $(hostname)"
           echo "macOS: $(sw_vers -productVersion)"
           echo "rust:  $(rustc --version)"
