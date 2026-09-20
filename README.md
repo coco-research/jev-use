@@ -1,22 +1,21 @@
 <div align="center">
 
-<img src="docs/readme/hero-dark.png" alt="jev-use — repo standard · playbook · macOS tools" width="840"/>
+<img src="docs/readme/hero-dark.png" alt="jev-use — repo standard · playbook · pre-alpha" width="840"/>
 
 # jev-use
 
-**Repo Standard · playbook home · macOS tools**
+**Repo Standard · playbook home**
 
-`standing instructions for agents and humans`
+`standing instructions · not a product app`
 
 ![license](https://img.shields.io/badge/license-Apache--2.0-5b6169?labelColor=0a0a0a&style=flat-square)
 ![status](https://img.shields.io/badge/status-pre--alpha-5b6169?labelColor=0a0a0a&style=flat-square)
-![platform](https://img.shields.io/badge/platform-macOS-5b6169?labelColor=0a0a0a&style=flat-square)
 ![role](https://img.shields.io/badge/role-repo%20standard-5b6169?labelColor=0a0a0a&style=flat-square)
 
 </div>
 
-> **This is the Repo Standard and playbook home — not a shipped product app.**
-> Pre-alpha. No marketing theater. Read before you touch a Coco repo.
+> **This repository is the Repo Standard and playbook home for Coco agents and humans.**
+> It is **not** a shipped Mac product. Pre-alpha. No download. No store listing.
 
 <img src="docs/readme/local-first.png" alt="Repo Standard → Playbook → macOS tools" width="100%"/>
 
@@ -24,30 +23,28 @@
 
 | Layer | What you get |
 | --- | --- |
-| **Repo Standard** | Standing instructions every agent and human follows across Coco repos — `docs/repo-playbook.html` |
+| **Repo Standard** | Standing instructions every agent/human follows — [`docs/repo-playbook.html`](docs/repo-playbook.html) |
 | **Playbook** | How we work: PR size, evidence, gates, hooks, docs authority |
-| **macOS tools** | Local tooling that lives beside the standard (AX / voice experiments) — **pre-alpha**, not a product surface |
-
-If you came here looking for a downloadable Mac app: there isn’t one. The AX observation layer is still being ported to Rust. The working reference lives outside this tree (see `reference/`).
+| **macOS tools (pre-alpha)** | Local experiments that live *beside* the standard — AX / voice workstreams. Not a product surface. |
 
 ## Start here
 
-1. Open [`docs/repo-playbook.html`](docs/repo-playbook.html) — the Repo Standard.
-2. Read [`AGENTS.md`](AGENTS.md) before any agent edit.
-3. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) if you are a person.
-4. For the AX / voice workstream only: [`docs/prd.md`](docs/prd.md) (draft, owner-gated).
+1. [`docs/repo-playbook.html`](docs/repo-playbook.html) — the Repo Standard (SoT).
+2. [`AGENTS.md`](AGENTS.md) — before any agent edit.
+3. [`CONTRIBUTING.md`](CONTRIBUTING.md) — if you are a person.
+4. AX / voice workstream only (owner-gated draft): [`docs/prd.md`](docs/prd.md).
 
 ## Layout
 
 ```
-docs/repo-playbook.html   Repo Standard (SoT for standing instructions)
-docs/                     prd, architecture, rules, design, tasks, memory
-crates/jev-ax/            macOS Accessibility port target (pre-alpha)
-crates/jev-voice/         voice hook path (pre-alpha)
+docs/repo-playbook.html   Repo Standard (SoT)
+docs/                     architecture, rules, design, tasks, memory, prd (draft)
+crates/jev-ax/            Accessibility port target — pre-alpha, not a product
+crates/jev-voice/         voice hook path — pre-alpha, not a product
 .metagpt/                 STATE.md, GATE.json, interview.md
 reference/                pointer to the working Python system
 .github/                  CI, PR template
-docs/readme/              SpaceX/dark README assets
+docs/readme/              SpaceX/dark README assets (Direction B)
 ```
 
 ## Working on this
@@ -58,7 +55,7 @@ cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-**Every change lands as a small PR with CI green.** No direct pushes to `main`.
+**Every change is a small PR with CI green.** No direct pushes to `main`.
 
 ## Keys: bring your own
 
