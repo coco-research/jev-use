@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Jev — what Grok Bot needs to know</title>
+<style>
+:root{
+  --blue:#0A6CFF; --deep:#0550C8; --soft:#E8F1FF;
+  --ink:#0B0F1A; --mut:#5B6B85; --ok:#12A150; --bad:#C2410C; --warn:#B45309;
+  --line:rgba(11,15,26,.09); --glass:rgba(255,255,255,.72); --r:22px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:clamp(14px,3.5vw,46px);
+  font:400 clamp(15px,1.05vw,16.5px)/1.62 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;
+  background:#F6F9FD;
+  background-image:
+    radial-gradient(1100px 520px at 6% -12%,#DCEBFF 0,rgba(220,235,255,0) 62%),
+    radial-gradient(900px 460px at 98% 2%,#EAF2FF 0,rgba(234,242,255,0) 58%);
+}
+.wrap{max-width:1000px;margin:0 auto;display:grid;gap:clamp(14px,2.2vw,22px)}
+.wrap > *{min-width:0}
+header{display:grid;gap:10px}
+h1{margin:0;font-size:clamp(26px,4.8vw,42px);line-height:1.08;letter-spacing:-.03em;font-weight:680}
+h1 em{font-style:normal;color:var(--blue)}
+.lede{margin:0;font-size:clamp(15px,1.6vw,18.5px);color:#26314A;max-width:68ch}
+.card{
+  background:var(--glass);backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border:1px solid var(--line);border-radius:var(--r);
+  padding:clamp(15px,2.4vw,26px);box-shadow:0 10px 34px rgba(11,15,26,.055)
+}
+.card.hi{border-color:rgba(10,108,255,.24);background:linear-gradient(180deg,rgba(232,241,255,.6) 0,var(--glass) 150px)}
+h2{margin:0 0 4px;font-size:clamp(17px,2.2vw,22px);letter-spacing:-.02em;font-weight:660}
+h2 .n{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;
+  margin-right:.5em;border-radius:9px;background:var(--blue);color:#fff;font-size:.72em;font-weight:700;vertical-align:.08em}
+h3{margin:20px 0 6px;font-size:clamp(15px,1.7vw,17px);font-weight:660}
+.sub{margin:0 0 14px;color:var(--mut);font-size:clamp(13.5px,1.5vw,15px);max-width:74ch}
+code,.mono{font:500 .87em/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+code{background:#EDF2FA;color:#1B4DA8;padding:2px 7px;border-radius:7px;word-break:break-word}
+pre{margin:10px 0 0;padding:14px 16px;border-radius:14px;overflow-x:auto;max-width:100%;
+  background:#0C1220;color:#DCE7F7;font:500 12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}
+pre .c{color:#7C8CA8} pre .g{color:#7BE0A8} pre .b{color:#7FB6FF} pre .y{color:#FFD479} pre .r{color:#FF9E80}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px;min-width:0}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);
+  font-weight:680;padding:0 12px 9px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 12px 11px 0;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:620}
+.ok{color:var(--ok);font-weight:700} .no{color:var(--bad);font-weight:700} .mid{color:var(--warn);font-weight:700}
+ul,ol{margin:8px 0 0;padding-left:20px;font-size:14px;color:#2C3750}
+li{margin:5px 0}
+.note{font-size:13px;color:var(--mut);margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.note b{color:#26314A}
+.callout{border-radius:16px;padding:14px 16px;font-size:14px;color:#2C3750;margin-top:12px;
+  border:1px solid rgba(194,65,12,.24);background:linear-gradient(180deg,#FEF6F2,#fff)}
+.callout b{color:#8A2E10}
+.callout.blue{border-color:rgba(10,108,255,.28);background:linear-gradient(180deg,#F3F8FF,#fff)}
+.callout.blue b{color:#0550C8}
+.callout.green{border-color:rgba(18,161,80,.28);background:linear-gradient(180deg,#F1FBF5,#fff)}
+.callout.green b{color:#0B6E36}
+.split{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));margin-top:8px}
+.pane{border-radius:16px;padding:14px 16px;border:1px solid var(--line);background:#fff}
+.pane.good{border-color:rgba(18,161,80,.3);background:linear-gradient(180deg,#F2FBF6,#fff)}
+.pane.bad{border-color:rgba(194,65,12,.24);background:linear-gradient(180deg,#FEF6F2,#fff)}
+.pane .h{font-weight:660;font-size:14.5px;display:flex;align-items:center;gap:8px}
+.tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px}
+.pane.good .tag{background:#E5F8EE;color:var(--ok)}
+.pane.bad .tag{background:#FCE9E1;color:var(--bad)}
+.pane p{margin:8px 0 0;font-size:13.5px;color:#2C3750}
+.flow{display:grid;gap:0;margin-top:6px}
+.step{display:grid;grid-template-columns:auto 1fr;gap:13px;align-items:start;padding:12px 0;
+  border-bottom:1px dashed var(--line);min-width:0}
+.step:last-child{border-bottom:0}
+.step > *{min-width:0}
+.dot{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;
+  background:var(--soft);color:var(--blue);font-weight:700;font-size:13px;border:1px solid rgba(10,108,255,.2)}
+.step .t{font-weight:620;letter-spacing:-.01em}
+.step .d{color:var(--mut);font-size:13.5px;margin-top:2px}
+@media (max-width:560px){.step{grid-template-columns:1fr;gap:7px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Jev is a selection model.<br><em>Not a chatbot.</em></h1>
+  <p class="lede">Given a numbered list of things on screen and a goal, it returns <b>one operation and one element index</b> in about 400 ms. Code executes it. It does not plan, explain, or remember. Everything below is measured on this machine.</p>
+</header>
+
+<div class="card hi">
+  <h2><span class="n">0</span>What was installed, and where</h2>
+  <p class="sub">Two files, because one cannot do both jobs — Grok caps <code>AGENTS.md</code> at 10,000 characters, and skills have no cap.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>File</th><th>Size</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td><code>~/.grok/AGENTS.md</code></td><td>4.6 K chars<br><span class="ok">46% of the cap</span></td><td>always-on rules</td></tr>
+        <tr><td><code>~/.grok/skills/jev/SKILL.md</code></td><td>11.3 K</td><td>full detail, loaded on demand</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>Verified by Grok's own inspector, not assumed</h3>
+  <pre><span class="c">$ grok inspect</span>
+  Project Instructions (3)
+    <span class="g">/Users/rijulkalra/.grok/Agents.md (global, ~1158 tokens)</span>   <span class="c">← mine</span>
+  Skills (658)
+    <span class="g">jev    user</span>                                                  <span class="c">← mine</span></pre>
+  <div class="note"><b>The token count matches:</b> 4,602 bytes reads as ~1,150 tokens. Installed as <b>real files, not symlinks</b> — deliberately, see section 8.</div>
+</div>
+
+<div class="card">
+  <h2><span class="n">1</span>The five commands</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Command</th><th>Use it for</th></tr></thead>
+      <tbody>
+        <tr><td><code>jev-use "goal" --app &lt;App&gt;</code></td><td>Drive any macOS app: click, type, menus, dialogs</td></tr>
+        <tr><td><code>jev-browse &lt;url&gt; "goal"</code></td><td>Drive a <b>browser page</b> — the web content itself</td></tr>
+        <tr><td><code>jev-use --table --app &lt;App&gt;</code></td><td>Print the element table. <b>No model call. Free.</b></td></tr>
+        <tr><td><code>jev-use --apps</code></td><td>List apps that have a UI</td></tr>
+        <tr><td><code>jev-check</code></td><td>Audit that everything works</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="n">2</span>The mistake that costs the most time</h2>
+  <p class="sub">Chrome is two programs in one window. <code>jev-use</code> can reach one of them.</p>
+  <div class="split">
+    <div class="pane good">
+      <div class="h"><span class="tag">JEV-USE</span> Chrome's own controls</div>
+      <p>Toolbar, menus, address bar. All reachable.</p>
+      <ul>
+        <li>New tab, Back, Reload, Bookmark</li>
+        <li>The URL bar — it is a real text field</li>
+        <li>Every menu: File, Edit, History</li>
+      </ul>
+      <pre style="margin-top:10px"><span class="c">$</span> jev-use "open a new tab" \
+    --app "Google Chrome"</pre>
+    </div>
+    <div class="pane bad">
+      <div class="h"><span class="tag">JEV-BROWSE</span> The page inside</div>
+      <p><b>Invisible to the accessibility tree.</b> Measured: 1246 nodes walked, 17 usable, and <b>zero page text</b>.</p>
+      <ul>
+        <li>Links, forms, search results</li>
+        <li>Anything you would call "using the website"</li>
+      </ul>
+      <pre style="margin-top:10px"><span class="c">$</span> jev-browse https://news.ycombinator.com \
+    "open the top story"</pre>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="n">3</span>Look before you drive</h2>
+  <p class="sub"><code>--table</code> costs nothing and answers "can Jev even see this app" in under a second. Always start here.</p>
+  <pre><span class="c">$</span> jev-use --table --app Terminal
+
+Terminal — rijulkalra — -zsh — 80×24  <span class="b">(465ms, 20 addressable of 878 nodes)</span>
+  <span class="y">[1]</span> radiobutton    ~ — -zsh ="True" [x]
+  <span class="y">[2]</span> button         Close tab
+  <span class="y">[3]</span> button         new tab
+  <span class="y">[4]</span> button         Button</pre>
+  <div class="note"><b>20 of 878.</b> The rest were rejected — hidden, disabled, or off screen. That filtering is the point: an element you can see but cannot use must never become a target.</div>
+</div>
+
+<div class="card">
+  <h2><span class="n">4</span>Most "status" questions are not GUI tasks</h2>
+  <p class="sub">This is in the guide because reaching for automation first is <b>20× slower</b> than reading the data directly.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Task</th><th>Right tool</th><th>Time</th></tr></thead>
+      <tbody>
+        <tr><td>"Status of project X?"</td><td>read its database / <code>git status</code></td><td class="ok">~50 ms</td></tr>
+        <tr><td>"What did I work on yesterday?"</td><td>query stored timestamps</td><td class="ok">~50 ms</td></tr>
+        <tr><td>"Uncommitted work in repo Y?"</td><td><code>git -C &lt;repo&gt; status --porcelain</code></td><td class="ok">~50 ms</td></tr>
+        <tr><td>"Open app Z"</td><td><code>open -a "&lt;App&gt;"</code></td><td class="ok">instant</td></tr>
+        <tr><td>"Open a URL"</td><td><code>open &lt;url&gt;</code></td><td class="ok">instant</td></tr>
+        <tr><td>"Click Settings in app Z"</td><td><b><code>jev-use</code></b></td><td class="mid">0.5–2 s</td></tr>
+        <tr><td>"Search for X on site Y"</td><td><b><code>jev-browse</code></b></td><td class="mid">~400 ms/step</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="n">5</span>Measured limits — so nothing over-promises</h2>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Thing</th><th>Reality</th></tr></thead>
+      <tbody>
+        <tr><td>One Jev decision</td><td>250–900 ms</td></tr>
+        <tr><td>One desktop step, end to end</td><td><b>0.5–2 s</b></td></tr>
+        <tr><td>A 5-step task</td><td>5–15 s</td></tr>
+        <tr><td>A structured query</td><td class="ok">~50 ms</td></tr>
+        <tr><td>Browser page per step</td><td>~400 ms</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout"><b>Desktop is not as fast as browser.</b> The guide says this explicitly, because promising browser speed for desktop work is the easiest way to look broken.</div>
+  <h3>What does not work</h3>
+  <ul>
+    <li><b>Chromium apps with accessibility off</b> expose almost nothing. PI-Desktop exposes 229 elements; a Chromium app with a11y disabled returns a near-empty tree.</li>
+    <li><b>An app with no open window</b> exposes only its menu bar. Correct behaviour, not a bug.</li>
+    <li><b>Very deep trees truncate</b> at 2000 nodes / depth 25.</li>
+    <li><b>Secure input fields</b> block synthetic keystrokes.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2><span class="n">6</span>Hard rules in the guide</h2>
+  <div class="flow">
+    <div class="step"><div class="dot">1</div><div>
+      <div class="t">Playwright is banned on this machine</div>
+      <div class="d">Not for screenshots, not for driving a page, <b>not as a fallback</b>. Includes <code>agent-browser</code> and <code>plugin_pi_browser_*</code>. Why it matters: a Playwright <code>fullPage</code> screenshot once injected 920 KB of image into a 750 K-token context and broke a session for an hour.</div>
+    </div></div>
+    <div class="step"><div class="dot">2</div><div>
+      <div class="t">Never modify <code>cocoteams</code>, <code>jev-ultrafast</code>, or <code>OpenMAIC</code></div>
+      <div class="d"><code>cocoteams</code> is <b>AGPL-3.0, reference-only, frozen</b> — work there cannot cross the licence into <code>cocoteams-ng</code>. The other two are not ours.</div>
+    </div></div>
+    <div class="step"><div class="dot">3</div><div>
+      <div class="t">Astra needs a human yes, every time</div>
+      <div class="d"><code>gpt-6-astra</code> is expensive, review-only. Never a default, never a fallback.</div>
+    </div></div>
+    <div class="step"><div class="dot">4</div><div>
+      <div class="t">A sub-0.70 confidence decision is a guess</div>
+      <div class="d">Say so rather than acting on it.</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="n">7</span>Troubleshooting, as written in the guide</h2>
+  <h3>Nothing works at all</h3>
+  <pre><span class="c">$</span> jev-check</pre>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Symptom</th><th>Cause</th></tr></thead>
+      <tbody>
+        <tr><td><code>jev-use --apps</code> errors</td><td>Accessibility permission missing → System Settings → Privacy &amp; Security → Accessibility</td></tr>
+        <tr><td>Jev route fails</td><td>No key on either route</td></tr>
+        <tr><td>App listed but table empty</td><td>No window open, or a11y disabled</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3>The three AX error codes worth recognising</h3>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Code</th><th>Name</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">-25204</td><td><code>CannotComplete</code></td><td>app did not answer in time. PI-Desktop does this reproducibly.</td></tr>
+        <tr><td class="mono">-25205</td><td><code>AttributeUnsupported</code></td><td><b>normal</b> — an app element has no position</td></tr>
+        <tr><td class="mono">-25211</td><td><code>APIDisabled</code></td><td>the process lacks Accessibility permission</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="n">8</span>One thing found while installing this</h2>
+  <div class="callout">
+    <b>All 15 files in <code>~/.grok/rules/</code> are broken symlinks.</b> They point at <code>~/coco-research/rules/cursor-mdc/</code>, which does not exist. So are <b>182 of the 183 skills</b>.
+  </div>
+  <p class="sub" style="margin-top:14px">Grok does not read that directory for rules — it scans for <code>Agents.md</code>, <code>AGENTS.md</code>, <code>AGENT.md</code>, <code>Claude.md</code> — so this is <b>not breaking anything today</b>. But 197 dead links is worth knowing, and it is exactly why the new files went in as <b>real files rather than symlinks</b>.</p>
+</div>
+
+<div class="card">
+  <h2>The short version, as it appears at the end of the guide</h2>
+  <div class="flow">
+    <div class="step"><div class="dot">1</div><div><div class="t">Jev answers one question: which button</div><div class="d">Ask it that. Do not ask it to plan.</div></div></div>
+    <div class="step"><div class="dot">2</div><div><div class="t">Look first</div><div class="d"><code>--table</code> is free and answers "can it even see this?"</div></div></div>
+    <div class="step"><div class="dot">3</div><div><div class="t">Chrome's toolbar is Jev-able. The page is not.</div><div class="d">That needs <code>jev-browse</code>.</div></div></div>
+    <div class="step"><div class="dot">4</div><div><div class="t">Most status questions are database reads</div><div class="d">Check before automating.</div></div></div>
+    <div class="step"><div class="dot">5</div><div><div class="t">Playwright is banned. Never fall back to it.</div><div class="d">—</div></div></div>
+    <div class="step"><div class="dot">6</div><div><div class="t">Desktop is 0.5–2 s per step</div><div class="d">Do not promise browser speed.</div></div></div>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
