@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="docs/readme/hero-dark.png" alt="jev-use — repo standard · playbook · pre-alpha" width="840"/>
+<img src="docs/readme/hero-dark.png" alt="Coco Research — jev-use repo standard" width="840"/>
 
 # jev-use
 
-**Repo Standard · playbook home**
+**Coco Research · Repo Standard · playbook home**
 
-`standing instructions · not a product app`
+`company mark · standing instructions · not a product app`
 
 ![license](https://img.shields.io/badge/license-Apache--2.0-5b6169?labelColor=0a0a0a&style=flat-square)
 ![status](https://img.shields.io/badge/status-pre--alpha-5b6169?labelColor=0a0a0a&style=flat-square)
@@ -14,8 +14,8 @@
 
 </div>
 
-> **This repository is the Repo Standard and playbook home for Coco agents and humans.**
-> It is **not** a shipped Mac product. Pre-alpha. No download. No store listing.
+> **Coco Research company home for the Repo Standard and agent playbook.**
+> This is **not** a shipped Mac product. Pre-alpha. The hero uses the Coco Research company mark only.
 
 <img src="docs/readme/local-first.png" alt="Repo Standard → Playbook → macOS tools" width="100%"/>
 
@@ -25,7 +25,7 @@
 | --- | --- |
 | **Repo Standard** | Standing instructions every agent/human follows — [`docs/repo-playbook.html`](docs/repo-playbook.html) |
 | **Playbook** | How we work: PR size, evidence, gates, hooks, docs authority |
-| **macOS tools (pre-alpha)** | Local experiments that live *beside* the standard — AX / voice workstreams. Not a product surface. |
+| **macOS tools (pre-alpha)** | Local experiments beside the standard — not a product surface |
 
 ## Start here
 
@@ -44,7 +44,7 @@ crates/jev-voice/         voice hook path — pre-alpha, not a product
 .metagpt/                 STATE.md, GATE.json, interview.md
 reference/                pointer to the working Python system
 .github/                  CI, PR template
-docs/readme/              SpaceX/dark README assets (Direction B)
+docs/readme/              SpaceX/dark README assets (Coco company mark)
 ```
 
 ## Working on this
