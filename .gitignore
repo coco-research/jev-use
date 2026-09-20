@@ -25,3 +25,7 @@
 # Local build output
 /dist/
 /build/
+
+# Nothing here yet. Documents images are not committed until a doc references them, and
+# they are PNG/JPEG as their extension says.
+/docs/readme/
