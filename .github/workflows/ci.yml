@@ -1,0 +1,63 @@
+name: ci
+
+# Every PR must be provably green before merge. This is the "testable PR" contract:
+# a PR without a passing run is not reviewable.
+#
+# macos runner because the real crate talks to the macOS Accessibility API. Skills
+# are cached because a cold Rust toolchain fetch is the slowest thing here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # A new push to the same branch cancels the previous run. Saves minutes and avoids
+  # reviewing a result that no longer matches the code.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  # Fast gate. Runs first and fails in about a minute if formatting or lints are off,
+  # so trivial feedback does not wait on a full build.
+  lint:
+    name: fmt + clippy
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  # The real gate. Tests must pass.
+  test:
+    name: test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace --all-features
+      - run: cargo build --workspace --release
+
+  # Docs must build, because the crate is where the design lives. A doc comment that
+  # does not compile is a broken contract.
+  docs:
+    name: docs
+    runs-on: macos-latest
+    env:
+      RUSTDOCFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo doc --workspace --no-deps

@@ -1,0 +1,21 @@
+{
+  "repo": "/Users/rijulkalra/code/jev-use",
+  "remote": "coco-research/jev-use",
+  "visibility": "private",
+  "intent": "Build a voice-driven control layer for macOS where Jev is the universal fallback rather than the router. The immediate goal is the Rust port of the proven Python accessibility driver, at parity, so that nothing downstream rests on code that cannot be verified. Emma, the voice front end, follows on top once the observation and execution layers are trustworthy.",
+  "task_index": 0,
+  "index": "done",
+  "interview": "done",
+  "prd": "draft",
+  "arch": "draft",
+  "plan": "draft",
+  "build": "blocked",
+  "blocked_by": "T1 - the objc2 spike. If the crate does not expose the four AX entry points, the dependency choice changes before any real code is written.",
+  "ripwire": "n/a",
+  "cartographer": "n/a",
+  "notes": [
+    "prd, arch and plan are drafted from the interview and are awaiting owner review. The gate is at prd.",
+    "CI is green from the first commit: 9 tests, clippy clean, fmt clean.",
+    "The repo is private because the documents describe machine layout, project names, the routing policy and key names."
+  ]
+}

@@ -1,0 +1,27 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local secrets and machine-specific state. Nothing here is ever committed.
+.env
+.env.*
+!.env.example
+*.local.md
+.metagpt/local/
+
+# Local build output
+/dist/
+/build/

@@ -1,0 +1,18 @@
+[package]
+name = "jev-ax"
+description = "macOS Accessibility observation and execution, shaped for Jev's decision layer."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+# Deliberately empty for now. The AX bindings (objc2-application-services,
+# objc2-app-kit, core-graphics) land in the spike PR, so this crate still builds
+# and its tests still run on a machine with no network access.
+
+[dev-dependencies]
