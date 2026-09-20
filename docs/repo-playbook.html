@@ -17,12 +17,15 @@
     2. scripts/standard-sync --check fails when any repository's copy differs from the
        canonical one. `--write` redeploys every copy.
 
-  Revision 4 - 2026-09-20. Change log in section 8.
+  Revision 5 - 2026-09-20. Change log in section 8.
 -->
-<meta name="repo-standard-revision" content="4">
+<meta name="repo-standard-revision" content="5">
 <meta name="repo-standard-date" content="2026-09-20">
 <meta name="repo-standard-canonical" content="products/jev-use/docs/repo-playbook.html">
 <meta name="repo-standard-checks" content="README.md; AGENTS.md; LICENSE; .githooks/pre-push; .githooks wired; no credentials in tracked files; credentials outside test/evidence; no machine-specific paths; CI workflow; PR template; CONTRIBUTING.md; docs/rules.md; tests; docs/prd.md; docs/architecture.md; docs/design.md; docs/tasks.md; docs/memory.md; .metagpt/STATE.md; .metagpt/GATE.json; the six documents are not stubs">
+<meta name="repo-standard-checker" content="scripts/repo-check">
+<meta name="repo-standard-checker-revision" content="5">
+<meta name="repo-standard-checker-sha256-16" content="ecb47a6276f30c87">
 <style>
 :root{
   --blue:#0A6CFF; --blue-deep:#0550C8; --soft:#E8F1FF;
@@ -101,7 +104,7 @@ footer{color:var(--mut);font-size:13.5px;text-align:center;padding:6px 0 16px}
   documents. This is the instruction set: read it once and you can bring any repo into
   compliance without asking anyone.</p>
   <p class="sub">
-    <b>Revision 4 — 2026-09-20.</b> This exact file is deployed into <b>every repository</b>
+    <b>Revision 5 — 2026-09-20.</b> This exact file is deployed into <b>every repository</b>
     and every copy is byte-identical. It is general on purpose: if a rule only makes sense for
     one project, that rule belongs in <i>that</i> project's <code>docs/rules.md</code>, not here.
     Enforced by <code>scripts/repo-check</code> and kept identical by
@@ -372,6 +375,16 @@ footer{color:var(--mut);font-size:13.5px;text-align:center;padding:6px 0 16px}
     <code>standard-sync --write</code>, then <code>--check</code> to prove every copy matches.
     Editing a copy anywhere else is a bug — it will be overwritten, and it will have confused
     somebody before that happens.</p>
+    <p>Each copy also declares <b>which checker belongs with it</b>:
+    <code>repo-standard-checker-sha256-16</code> holds the hash of
+    <code>scripts/repo-check</code> at this revision, and
+    <code>repo-standard-checker-revision</code> names that revision. A repo whose local checker
+    does not hash to that value is behind the standard, and its gate can say so instead of
+    guessing.</p>
+    <p><code>standard-sync --write</code> refuses two things, both learned by running it rather
+    than reading it: it will not deploy a playbook that declares no revision, and it will not
+    write into a repository that has uncommitted work. It reports those instead of burying
+    somebody's in-flight changes behind one more modified file.</p>
   </div>
 </div>
 
@@ -415,11 +428,18 @@ footer{color:var(--mut);font-size:13.5px;text-align:center;padding:6px 0 16px}
       self-check read that name as undocumented and failed any repo holding a single
       fixture-shaped key. The check now names itself either way, it is declared, and the count
       is correct.</li>
+    <li><b>Revision 5 (2026-09-20)</b> — the file now says which checker goes with it, so a repo
+      can tell whether its own <code>scripts/repo-check</code> is behind. Two refusals were added
+      to <code>standard-sync</code> after running it against the real fleet instead of reading it:
+      it will not deploy a playbook that declares no revision (a stale checkout would otherwise
+      overwrite every good copy), and it will not write into a repo with uncommitted work. It
+      also stopped counting directories that are not repositories — measured before the fix, 31
+      targets of which 24 were repositories, one of them completely empty.</li>
   </ul>
 </div>
 
 <footer>
-  Revision 4 · 2026-09-20 · the standard every repository carries ·
+  Revision 5 · 2026-09-20 · the standard every repository carries ·
   verified by <span class="mono">scripts/repo-check</span> ·
   kept identical by <span class="mono">scripts/standard-sync</span>
 </footer>

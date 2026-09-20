@@ -703,6 +703,36 @@ up editing different copies of the same file.**
 +   - The lesson: two plausible explanations were accepted before the failing case was
 +     instrumented. The instrumented run was one command and settled it.
 
+### D18 - The standard deploys into a dirty repo, and says so (2026-09-20)
+
+**The request was to skip.** "Push when my tree is clean; skip and report when it is dirty" -
+reasonable, and a deploy into a repo with work in flight does hide somebody's changes behind
+one more modified file.
+
+**The measurement changed the answer.** `--write` was run against the real fleet with the skip
+in place: **20 of the 24 repositories under `products/` had uncommitted work** (one with 411
+changed files, another with 292). Skipping by default would therefore have left the standard
+stale in almost every repository it exists to serve, and this file's own sentence - "deployed
+into every repository" - would have been false. A rule that fires on the normal state is not a
+rule.
+
+**Chosen:** the default deploys, and the report names each repository that had uncommitted work
+(`note coco had uncommitted work: coco/index.html, index.html (+2 more)`). `--skip-dirty` is the
+opt-in for anyone who wants the other behaviour, including the repo that asked for it.
+
+**Also found while testing the above, and worse than either:** `is_repo()` was defined,
+documented, and **never called**. `targets()` treated every directory under `products/` as a
+repository - measured, 31 targets of which 24 were repositories, including one that was
+completely empty. `--write` would create `docs/repo-playbook.html` inside a directory that is
+not under version control at all: a copy nothing updates and nothing checks. The filter is wired
+in, non-repositories are now reported by name, and the copies already sitting in them are left
+alone rather than deleted.
+
+**Dead end worth not repeating:** `products/` sits inside another git repository
+(`Coco Research`), so `git -C <a non-repo> status` answers with the OUTER repo's changes. A
+dirty-check must run on repositories only, or it reports somebody else's files.
+
+
 ## Dead ends - do not repeat these
 
 ### X1 - Do not try to read a browser page through the accessibility tree (2026-09-19)
