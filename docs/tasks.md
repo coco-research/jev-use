@@ -181,3 +181,22 @@ The live board. Every PR updates this file.
     file that does not parse is logged and ignored *for that run*: the hook is on the
     paste path and must not break dictation.
   - See `docs/memory.md` D15.
+
+- [x] **T18 - Questions that wait, and a gate the queue passes** - `crates/jev-ask`.
+  - Built from a measurement, not a hunch: of 95 agent turns on this machine that ended on a
+    question, **16% were answered promptly**, 56% were followed by a message with no overlap
+    with the question, and 5% were never followed by anything. Of the 31 that were a real
+    decision for the human, 45% went unanswered.
+  - A question is now an object with a closed option set, a default, what it blocks, and an
+    expiry. `ask` (agent), `open` (one ranked list, capped at 7, answerable by row),
+    `answer` (a choice outside the set is refused and nothing is written), `gate`
+    (exit 2 while work is held), `sweep` (applies expired defaults and reports them),
+    `stats` (the numbers that say whether it earns its place).
+  - Store: append-only JSON Lines at `~/.config/jev-use/decisions.jsonl`, outside every
+    repository. A damaged line is an error naming its line number, never a silent skip.
+  - **Measured on the first real run:** `gate` from a non-repo directory invented a lane from
+    the cwd name and reported "queue clear" while work was held elsewhere in the same queue.
+    Fixed: no repository means every lane is checked. A false clear is the failure this exists
+    to prevent.
+  - 17 tests. Listed in `AGENTS.md` section 7, because a rule that is not written down is a
+    rule that holds until the memory is busy. See `docs/memory.md` D21.
