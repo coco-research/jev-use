@@ -315,19 +315,23 @@ def live(app: str, port_cmd: str, verbose: bool) -> int:
     except (ValueError, json.JSONDecodeError):
         return fail("the port printed something that is not JSON")
 
-    port = {
-        "app": raw.get("app", app),
-        "title": raw.get("title"),
-        "fingerprint": raw.get("fingerprint"),
-        # The port reports the nodes it walked; the reference reports its doubled counter.
-        "elements_seen": raw.get("nodes_seen", raw.get("elements_seen")),
-        "hidden": raw.get("hidden"),
-        "truncated": raw.get("truncated"),
-        "actions": [
-            {k: redact(a.get(k), home) for k in ELEMENT_KEYS}
-            for a in raw.get("actions", raw.get("elements", []))
-        ],
-    }
+    # Projected through the SAME function as the reference, so the two sides cannot differ
+    # by shape. An earlier version mapped only ELEMENT_KEYS here and every extra truthy key
+    # on the reference side (value, options) showed up as a divergence on the first live
+    # run. The port reports `nodes_seen` for the nodes it walked; the reference reports a
+    # counter that is double the nodes it walked.
+    port = project(
+        {
+            "app": raw.get("app", app),
+            "title": raw.get("title"),
+            "fingerprint": raw.get("fingerprint"),
+            "elements_seen": raw.get("nodes_seen", raw.get("elements_seen")),
+            "hidden": raw.get("hidden"),
+            "truncated": raw.get("truncated"),
+            "actions": raw.get("actions", raw.get("elements", [])),
+        },
+        home,
+    )
 
     diffs = compare_tables(reference, port, "live", known_divergence=True)
     print(f"parity: reference vs port, {app}")
