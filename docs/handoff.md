@@ -4,6 +4,8 @@
 **For:** the agent taking this repo over.
 **Status:** 18 PRs merged, `main` green, nothing open, nothing half-written.
 **Read this file first, then `AGENTS.md`, then `CONTRIBUTING.md`, then `.metagpt/STATE.md`.**
+The rules this repo is held to live in `docs/repo-playbook.html` (the standard) and are
+enforced by `scripts/repo-check` — run it before claiming anything is done.
 
 ---
 

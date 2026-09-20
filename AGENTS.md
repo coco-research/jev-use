@@ -6,6 +6,19 @@ of the ownership boundary this repo is on.
 
 Rules for any agent working in this repo. They are not suggestions.
 
+## 0. Before this file: the standard
+
+`docs/repo-playbook.html` is the **source of truth for the standard itself** — the standing
+rules, the gate, and the documents every repo carries. `scripts/repo-check` is the tool that
+enforces it, and the playbook declares the checks that tool runs, so the two cannot drift
+apart unnoticed.
+
+Run it before you claim anything is done:
+
+```bash
+python3 scripts/repo-check            # must say COMPLIANT
+```
+
 ## 0. The five documents, and when each is authoritative
 
 | File | Answers | Update when |

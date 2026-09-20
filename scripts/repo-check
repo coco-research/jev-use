@@ -287,6 +287,59 @@ def looks_like_code(repo: Path, files: list[str]) -> bool:
                ("Cargo.toml", "package.json", "pyproject.toml", "go.mod", "Makefile"))
 
 
+PLAYBOOK = "docs/repo-playbook.html"
+
+
+def check_playbook(repo: Path, files: list[str]) -> list[Finding]:
+    """The standard's own source of truth must name every check this tool runs.
+
+    Written because the playbook sat three weeks stale and nothing noticed: the
+    checker examined the six Markdown documents and no HTML, so the one file
+    whose job is to describe the standard was the one file nobody verified.
+
+    The playbook declares its check list in a meta tag. This compares that list
+    against the checks this tool actually ran on this repo. A check added and not
+    documented, or documented and no longer present, is a GAP.
+    """
+    out: list[Finding] = []
+    if PLAYBOOK not in files:
+        # Not every repo carries the playbook; only the one that owns the standard.
+        return out
+
+    body = read(repo, PLAYBOOK)
+    m = re.search(r'<meta\s+name="repo-standard-checks"\s+content="([^"]+)"', body)
+    if not m:
+        out.append(Finding(2, "the standard documents itself", False,
+                           f"{PLAYBOOK} has no repo-standard-checks meta tag",
+                           "add the tag listing the checks, so drift is detectable"))
+        return out
+
+    declared = {c.strip() for c in m.group(1).split(";") if c.strip()}
+    actual = {f.name for f in (check_required(repo, files) + check_secrets(repo, files)
+                               + check_machine_paths(repo, files) + check_expected(repo, files)
+                               + check_docs(repo, files) + check_metagpt(repo, files))}
+    actual.add(PLAYBOOK_WIRED_NAME)
+
+    missing = sorted(actual - declared)
+    extra = sorted(declared - actual)
+    if missing or extra:
+        detail = []
+        if missing:
+            detail.append("undocumented: " + ", ".join(missing[:4]))
+        if extra:
+            detail.append("documented but no longer run: " + ", ".join(extra[:4]))
+        out.append(Finding(2, "the standard documents itself", False,
+                           "; ".join(detail),
+                           f"update the meta tag in {PLAYBOOK}"))
+    else:
+        out.append(Finding(2, "the standard documents itself", True,
+                           f"{len(declared)} check(s), all documented"))
+    return out
+
+
+PLAYBOOK_WIRED_NAME = "the six documents are not stubs"
+
+
 def check_expected(repo: Path, files: list[str]) -> list[Finding]:
     out: list[Finding] = []
     code = looks_like_code(repo, files)
@@ -432,6 +485,7 @@ def main() -> int:
     findings: list[Finding] = []
     findings += check_required(repo, files)
     findings += check_secrets(repo, files)
+    findings += check_playbook(repo, files)
     findings += check_machine_paths(repo, files)
     if args.tier >= 2:
         findings += check_expected(repo, files)

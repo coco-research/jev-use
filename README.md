@@ -23,7 +23,7 @@
 
 | Layer | What you get |
 | --- | --- |
-| **Repo Standard** | Standing instructions every agent/human follows — [`docs/repo-playbook.html`](docs/repo-playbook.html) |
+| **Repo Standard** | Standing instructions every agent/human follows — [`docs/repo-playbook.html`](docs/repo-playbook.html) (Revision 2, 2026-09-20). It declares the checks `scripts/repo-check` runs, and the tool fails when the two lists disagree, so the standard cannot drift quietly. |
 | **Playbook** | How we work: PR size, evidence, gates, hooks, docs authority |
 | **macOS tools (pre-alpha)** | Local experiments beside the standard — not a product surface |
 
