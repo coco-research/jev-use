@@ -1,7 +1,13 @@
 # Design
 
-**Status:** draft
-**Last updated:** 2026-09-19
+**Status:** approved 2026-09-20 (owner)
+**Last updated:** 2026-09-20 - stated which surface this describes, and what is built
+
+> **What this describes:** the v0.1 Emma pill - the voice interface that shows what
+> was heard and what it will do. **Not built yet:** it is the Tauri shell (T12),
+> blocked on T4 (the tree walk) because it needs a real observation to display. What
+> IS built and in daily use today is the voice hook, whose interface is a terminal
+> menu (`jev-config`) and one line of log per utterance.
 
 Visual direction: **electric blue on white, modern iOS feel, real glass, light theme.**
 Everything responsive, no fixed widths.
