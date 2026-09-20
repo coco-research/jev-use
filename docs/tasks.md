@@ -8,9 +8,18 @@ The live board. Every PR updates this file.
 
 ## Now
 
-- [ ] **T14 - Register the self-hosted runner for this repo** - `coco-mac-local` is already
-  online for four other repos. Registering it here would let CI run the macOS path, which
-  an ubuntu runner cannot. See `docs/memory.md` D10.
+- [x] **T14 - The macOS path runs in CI** - runner `coco-mac-jevu` registered for this
+  repo (self-hosted, LaunchAgent, picked up its first job in 4 seconds) and a `macos` job
+  that compiles the gated code, probes its own accessibility grant, and runs the live AX
+  tests when that grant exists.
+  - **Security:** the job is guarded to branches of this repository, because a public repo
+    plus a self-hosted runner means a fork PR would get a shell on this Mac.
+  - Found and fixed on the first runs: launchd gives steps no user PATH; `~/.cargo/bin` on
+    this machine dangles (symlinks to a `rustup` that is not installed), so the job derives
+    the real toolchain from `$HOME`.
+  - **Open, and for a human:** the runner is not yet trusted in System Settings ->
+    Privacy & Security -> Accessibility, so live AX reads answer `-25211`. The job reports
+    that as an environment gap and says "NOT TESTED" rather than passing quietly. See D16.
 
 ## Next
 

@@ -28,7 +28,7 @@
     "Gate cleared 2026-09-20. prd, arch and plan approved by the owner; build unblocked. T2 is now in progress.",
     "T1 answered YES: objc2-application-services exposes all four AX entry points and they were called against five live apps. The accessibility-sys fallback is dropped. Evidence in docs/memory.md D8.",
     "CI is green: 9 tests, clippy clean, fmt clean, on a real GitHub runner (public repo = free Actions).",
-    "KNOWN CI GAP, not yet closed: macOS-only code cannot be compiled or tested on an ubuntu runner, so it is covered by the local pre-push hook only. A self-hosted runner IS available on this machine (coco-mac-local, online for coco, coco-connect, coco-hermes, coco-m0) but is not registered for this repo. Registering it would close the gap.",
+    "CI GAP CLOSED 2026-09-20: the macOS path now runs in CI on the self-hosted runner `coco-mac-jevu` (this Mac, LaunchAgent). It compiles the cfg(target_os = \"macos\") code, probes its own accessibility grant, and runs the live AX tests when that grant exists. Open item: the runner is not yet trusted in System Settings -> Privacy & Security -> Accessibility, so the live tests report as NOT TESTED (a warning and a step summary, not a pass). See docs/memory.md D16.",
     "Docs live in docs/: prd, architecture, rules, design, tasks, memory, plus repo-playbook and jev-for-agents."
   ]
 }

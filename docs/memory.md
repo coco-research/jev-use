@@ -584,6 +584,69 @@ warns about the pattern in general rather than about that one instance.
 The alternative was documented environment variables, which is what this replaced.
 
 
+### D16 - T14 done: the macOS path runs in CI now, and what it found (2026-09-20)
+
+**The gap this closes** has been on the board since T1: the accessibility code is
+`cfg(target_os = "macos")`, an ubuntu runner never compiles it, and a GitHub-hosted macOS
+runner cannot test it either - no logged-in GUI session, no accessibility grant. So the
+local pre-push hook was the only thing that ever ran it, which is not a gate.
+
+**Registered `coco-mac-jevu`**: a self-hosted runner for this repo, on this Mac, as a
+LaunchAgent so it survives reboots (one runner directory per repo, the pattern the other
+four runners on this machine already follow). It picked up its first job **four seconds**
+after the workflow was pushed.
+
+**SECURITY, recorded because it is easy to undo by accident.** This repository is public,
+and a self-hosted runner executes whatever a workflow asks it to, on a real machine, with
+a real logged-in user. A fork pull request must never reach it. The job carries:
+
+```yaml
+if: github.event_name != 'pull_request'
+    || github.event.pull_request.head.repo.full_name == github.repository
+```
+
+Removing that to "make forks work" hands anyone who can open a pull request a shell on
+this Mac. The workflow comment says so in the same words.
+
+**What the job found on its first honest run: two environment bugs and one real limit.**
+
+1. **`cargo: command not found`**, while `cargo --version` worked in a terminal. A
+   launchd-launched runner does not hand its steps the user's PATH.
+2. **Then it still could not find cargo, with the right PATH.** `~/.cargo/bin` is a
+   directory of symlinks to `rustup`, and `rustup` is not installed on this machine - so
+   `cargo`, `cargo-clippy`, `cargo-fmt` and `rust-analyzer` all dangle. The Rust that
+   actually runs is a bare toolchain under `~/.rustup/toolchains/`. The job now derives
+   that directory from `$HOME` (no architecture, no home directory in a public workflow)
+   and prefers `stable` over whatever `ls | head -1` returns, which was 1.85.0.
+
+   Worth knowing outside CI: `~/.profile` sources `$HOME/.cargo/env`, which puts that
+   dangling directory on PATH. Anything launched with that environment finds no cargo.
+   Left alone deliberately - it is the user's Rust install, and repairing it is an install
+   decision, not an edit.
+3. **The runner has no accessibility grant.** The probe answered the question it was built
+   for:
+
+   ```
+   system-wide     role "AXSystemWide" error None          <- reads work at all
+   Finder          role ""             error Some(-25211)  <- APIDisabled
+   ```
+
+   That is a TCC grant made by a human in System Settings, so it is an **environment** gap
+   and not a code failure - the line this repo already draws in the pre-push hook ("a
+   missing tool is an environment problem, not a code problem"). The permission step
+   therefore reports instead of failing, the live tests run only when the grant exists, and
+   when it does not the run says so twice: a warning annotation and a step summary reading
+   **"macOS path: NOT TESTED on this run"**. Nothing claims a pass it did not earn, and
+   nothing pretends the code is broken.
+
+**Why the honesty matters more than a green tick:** a skipped test that reports as a pass
+is worse than no test, because it buys confidence it did not earn. This job is allowed to
+be green about compiling and explicit about not having looked.
+
+**One open item, for a human:** grant `$HOME/actions-runner-jevu/bin/Runner.Listener` in
+System Settings -> Privacy & Security -> Accessibility. The moment it is granted, the same
+job starts running the live AX tests on real apps, with no change to the workflow.
+
 ## Dead ends - do not repeat these
 
 ### X1 - Do not try to read a browser page through the accessibility tree (2026-09-19)
