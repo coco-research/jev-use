@@ -57,6 +57,37 @@ cargo clippy --workspace --all-targets -- -D warnings
 **Every change lands as a small PR with CI green.** No direct pushes to `main`. A PR
 without a passing run is not reviewable - see `.github/pull_request_template.md`.
 
+## Keys: bring your own
+
+**This repo contains no keys, and nothing in it will ever need ours.** Every component
+reads credentials from your machine, in the form you choose:
+
+| What | Where it looks | Override |
+| --- | --- | --- |
+| `scripts/usage-check` | Providers **you list** in `~/.config/jev-use/usage-check.json` (template: `scripts/usage-check.example.json`). Ships with none. | `JEV_USAGE_CONFIG`, `JEV_KEYS_FILE`, `JEV_AUTH_FILE`, `JEV_USAGE_DB` |
+| `scripts/voice-hook` | Nothing. It reads no keys and calls no API; it decides, then hands a goal to *your* driver. | `JEV_USE_BIN`, `JEV_VOICE_MODE`, `JEV_VOICE_TRIGGER` |
+| `crates/jev-ax` | Nothing. Accessibility reads, no network at all. | - |
+| The driver that answers a goal | Whatever you already use. This repo ships none yet (T7). | - |
+
+Two rules follow, and the gate enforces them:
+
+1. **No credential is ever committed**, in code, docs, examples or test fixtures. The
+   pre-push hook scans for key shapes, and `repo-check` scans every tracked file.
+2. **No machine-specific path is committed.** `$HOME`-relative or an environment variable
+   with a default - never someone's home directory baked in. `repo-check` fails on those.
+
+Config lives outside the repo (`~/.config/jev-use/`), which is why a fork behaves like a
+fresh install and asks for your keys instead of inheriting ours.
+
+## Scripts
+
+| Script | What it does |
+| --- | --- |
+| `scripts/install-voice-hook.sh` | Builds and installs the voice hook, then prints what to put in CoCo Voice's settings. |
+| `scripts/voice-hook` | The file CoCo Voice runs per transcript. Reads its config from the environment. |
+| `scripts/repo-check` | Audits a repo against the standing standard: required files, credentials, machine paths, docs. |
+| `scripts/usage-check` | Where tokens and money went, from your own providers and the local turn log. |
+
 ## Licence
 
 Apache-2.0. Chosen over MIT for the explicit patent grant, which matters for a project

@@ -70,7 +70,7 @@ jev-use --table --app Terminal
 ```
 
 ```
-Terminal — rijulkalra — -zsh — 80×24  (465ms, 20 addressable of 878 nodes)
+Terminal — you — -zsh — 80×24  (465ms, 20 addressable of 878 nodes)
   [1] radiobutton    ~ — -zsh ="True" [x]
   [2] button         Close tab
   [3] button         new tab
@@ -257,7 +257,7 @@ Read the failures in order. The usual causes:
 | Symptom | Cause | Fix |
 | --- | --- | --- |
 | `jev-use --apps` errors | Accessibility permission missing | Grant it in System Settings → Privacy & Security → Accessibility |
-| Jev route fails | No key on either route | Check `~/keys/typesafe.txt` or the OpenRouter entry in `~/.pi/agent/auth.json` |
+| Jev route fails | No key on either route | Supply **your own** key where your driver looks for it - an environment variable, or a file you point it at. This repo holds no keys and reads none. |
 | App in `--apps` but empty table | No window open, or a11y disabled | Open a window first |
 
 ### Jev picks the same thing repeatedly and nothing happens

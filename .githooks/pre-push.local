@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# pre-push.local - the checks only THIS repo knows about.
+#
+# The shared hook (.githooks/pre-push) covers the stack: fmt, clippy, tests. It cannot
+# know that this repo's public surface has two rules of its own:
+#
+#   1. NO CREDENTIAL, ever. Not in code, docs, examples or fixtures.
+#   2. NO machine-specific path, ever. $HOME-relative or an env var with a default;
+#      never someone's home directory baked in.
+#
+# repo-check is the same audit a human would run by hand, and it scans every TRACKED
+# file rather than the staged diff. That difference matters: a key committed three
+# commits ago is invisible to a staged-diff scan and obvious to this one.
+#
+# Exit 0 when the required tier is clean. Style suggestions and tier-2 notes do not block
+# a push - a gate that cries wolf gets bypassed, and then it protects nothing.
+set -uo pipefail
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+CHECK="$ROOT/scripts/repo-check"
+
+[ -x "$CHECK" ] || {
+  printf '  skip  repo-check            (not executable - run: chmod +x scripts/repo-check)\n'
+  exit 0
+}
+
+if python3 "$CHECK" --repo "$ROOT" >/tmp/repo-check.out 2>&1; then
+  printf '  ok    repo-check            credentials and machine paths clean\n'
+  exit 0
+fi
+
+# A failure here means a required-tier finding: credentials in tracked files, a missing
+# required file, or the hooks unwired. Show what it was.
+printf '  FAIL  repo-check\n'
+sed 's/^/        /' /tmp/repo-check.out | tail -25
+printf '\n  Fix the finding above. If it is a credential: remove it AND rotate it,\n'
+printf '  then say so in the PR body - assume it is already public.\n'
+exit 1

@@ -19,27 +19,52 @@ WHY BALANCE DELTAS AND NOT PRICES:
     stale, this records the wallet balance on each --live run and reports the
     difference. A delta cannot be wrong; a hardcoded price can.
 
+BRING YOUR OWN KEYS. This tool ships with NO providers in it. It knows about your
+wallets only because you point it at them, in a config file that stays on your machine
+and is never committed:
+
+    ~/.config/jev-use/usage-check.json     (template: scripts/usage-check.example.json)
+
+Keys are read from the environment, or from an env-style file you name. A provider whose
+key is missing is reported as "no key" rather than guessed at. Every path is overridable:
+
+    JEV_USAGE_CONFIG   default ~/.config/jev-use/usage-check.json
+    JEV_USAGE_DB       default ~/.pi-desktop/pi.sqlite
+    JEV_KEYS_FILE      default ~/.secrets/ai-keys.env
+    JEV_AUTH_FILE      default ~/.pi/agent/auth.json
+    JEV_USAGE_STATE    default ~/.pi/agent/usage-history.json
+
 Exit codes: 0 fine, 1 something needs attention, 2 the check itself failed.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sqlite3
 import ssl
 import subprocess
 import sys
 import time
+import urllib.parse
 import urllib.request
 from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
 HOME = Path.home()
-DB = HOME / ".pi-desktop" / "pi.sqlite"
-SECRETS = HOME / ".secrets" / "ai-keys.env"
-AUTH = HOME / ".pi" / "agent" / "auth.json"
-STATE = HOME / ".pi" / "agent" / "usage-history.json"
+
+
+def env_path(var: str, default: Path) -> Path:
+    """A path the user can move without editing this file."""
+    return Path(os.environ.get(var) or default)
+
+
+CONFIG = env_path("JEV_USAGE_CONFIG", HOME / ".config" / "jev-use" / "usage-check.json")
+DB = env_path("JEV_USAGE_DB", HOME / ".pi-desktop" / "pi.sqlite")
+SECRETS = env_path("JEV_KEYS_FILE", HOME / ".secrets" / "ai-keys.env")
+AUTH = env_path("JEV_AUTH_FILE", HOME / ".pi" / "agent" / "auth.json")
+STATE = env_path("JEV_USAGE_STATE", HOME / ".pi" / "agent" / "usage-history.json")
 
 GREEN, RED, YELLOW, DIM, BOLD, RESET = (
     "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[1m", "\033[0m"
@@ -151,56 +176,111 @@ def fetch_json(url: str, key: str, timeout: int = 12):
         return json.load(r)
 
 
-def wallet_balances(env: dict) -> list[dict]:
-    """Only providers that expose a real balance endpoint. Discovered, not assumed."""
-    out: list[dict] = []
-    auth = read_auth()
+def load_config() -> dict:
+    """The operator's own providers. Nothing is assumed when this is absent."""
+    try:
+        return json.loads(CONFIG.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
 
-    def add(name, fn):
+
+def wallet_balances(env: dict, cfg: dict) -> list[dict]:
+    """Probe the wallets YOU configured, and only those.
+
+    Each entry names an endpoint, the field holding the balance, and where the key comes
+    from. Two shapes are supported because vendors differ: `balance_field` for a flat
+    number, and `credits` for the total/used pair that OpenRouter-style APIs return.
+
+    Entries sharing a `group` are one wallet behind several keys (common: one account,
+    one key per product). Tagging them keeps a reader from adding the same money twice.
+    """
+    wallets = cfg.get("wallets") or []
+    if not wallets:
+        return []
+
+    auth = read_auth()
+    def resolve_key(spec: dict):
+        if spec.get("key_env"):
+            return env.get(spec["key_env"]) or os.environ.get(spec["key_env"]) or None
+        if spec.get("auth_file_key"):
+            return (auth.get(spec["auth_file_key"]) or {}).get("key") or None
+        return None
+
+    out: list[dict] = []
+    for spec in wallets:
+        name = spec.get("name") or spec.get("url") or "unnamed wallet"
         try:
-            out.append(fn())
+            key = resolve_key(spec)
+            if not key:
+                out.append({"name": name, "ok": False, "detail": "no key"})
+                continue
+            d = fetch_json(spec["url"], key)
+            if spec.get("credits"):
+                granted = float(d.get("total_credits") or 0)
+                used = float(d.get("total_usage") or 0)
+                entry = {"name": name, "ok": True, "unit": spec.get("unit", "USD"),
+                         "balance": granted - used, "spent": used, "granted": granted}
+            else:
+                # A field, or a list of candidates: vendors disagree on the name, and
+                # the first present one is the balance.
+                fields = spec.get("balance_field", "balance")
+                fields = [fields] if isinstance(fields, str) else fields
+                raw = next((d[f] for f in fields if d.get(f) is not None), 0)
+                entry = {"name": name, "ok": True, "unit": spec.get("unit", "USD"),
+                         "balance": float(raw or 0)}
+            if spec.get("group"):
+                entry["shared"] = spec["group"]
+            if spec.get("note"):
+                entry["note"] = spec["note"]
+            out.append(entry)
         except Exception as exc:  # noqa: BLE001
             out.append({"name": name, "ok": False, "detail": f"{type(exc).__name__}"})
-
-    # apikey.fan - verified endpoint, returns USD
-    def apikeyfan(label, envvar):
-        def f():
-            k = env.get(envvar)
-            if not k:
-                return {"name": label, "ok": False, "detail": "no key"}
-            d = fetch_json("https://api.apikey.fan/user/balance", k)
-            bal = float(d.get("balance") or d.get("remaining") or 0)
-            # Both apikey.fan keys draw on ONE wallet - verified, they return
-            # byte-identical balances. Tagging them avoids a reader adding two
-            # numbers that are the same money.
-            return {"name": label, "ok": True, "unit": "USD", "balance": bal,
-                    "shared": "apikey.fan", "note": "pay-per-use"}
-        return f
-
-    add("apikey.fan DeepSeek", apikeyfan("apikey.fan DeepSeek", "APIKEYFUN_DEEPSEEK_KEY"))
-    add("apikey.fan Astra", apikeyfan("apikey.fan Astra", "APIKEYFUN_ASTRA_KEY"))
-
-    # OpenRouter - credits and usage
-    def openrouter():
-        k = (auth.get("openrouter") or {}).get("key")
-        if not k:
-            return {"name": "OpenRouter", "ok": False, "detail": "no key"}
-        d = fetch_json("https://openrouter.ai/api/v1/credits", k).get("data") or {}
-        total = float(d.get("total_credits") or 0)
-        used = float(d.get("total_usage") or 0)
-        return {"name": "OpenRouter", "ok": True, "unit": "USD",
-                "balance": total - used, "spent": used, "granted": total,
-                "note": "free overflow lane"}
-    add("OpenRouter", openrouter)
-
     return out
 
 
-def route_health(env: dict) -> list[dict]:
-    """Which gateway routes can actually complete right now. /health runs a real call."""
-    mk = env.get("LITELLM_MASTER_KEY")
-    if not mk:
+def route_health(env: dict, cfg: dict) -> list[dict]:
+    """Ask your gateway which of your routes can complete right now.
+
+    Off unless you name a gateway: this is the one probe that would otherwise send a
+    request to a service nobody configured.
+    """
+    gw = cfg.get("gateway") or {}
+    base = (gw.get("base_url") or "").rstrip("/")
+    models = gw.get("models") or []
+    key_env = gw.get("key_env") or ""
+    key = env.get(key_env) or os.environ.get(key_env, "") if key_env else ""
+    if not base or not models or not key:
         return []
+    out = []
+    for m in models:
+        entry = {"model": m, "state": "unknown", "detail": ""}
+        try:
+            url = f"{base}/health?model={urllib.parse.quote(m)}"
+            req = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"})
+            with urllib.request.urlopen(req, timeout=60) as r:
+                d = json.load(r)
+            bad = d.get("unhealthy_endpoints") or []
+            good = d.get("healthy_endpoints") or []
+            if bad and not good:
+                entry |= {"state": "dead",
+                          "detail": str((bad[0] or {}).get("error") or "")[:90]}
+            else:
+                entry |= {"state": "ok", "detail": f"{len(good)} endpoint(s)"}
+        except urllib.error.HTTPError as exc:
+            raw = exc.read().decode(errors="replace")
+            detail = raw[:200]
+            try:
+                doc = json.loads(raw)
+                bad = doc.get("unhealthy_endpoints") or []
+                if bad:
+                    detail = str((bad[0] or {}).get("error") or detail)
+            except Exception:  # noqa: BLE001
+                pass
+            entry |= {"state": "dead", "detail": " ".join(detail.split())[:90]}
+        except Exception as exc:  # noqa: BLE001
+            entry |= {"state": "unknown", "detail": type(exc).__name__}
+        out.append(entry)
+    return out
     models = ["deepseek-v4.1-flash", "deepseek-v4.1-flash-cc2", "deepseek-v4.1-flash-akf",
               "GLM-5.3-Flash", "gpt-6-astra", "gpt-6-astra-akf"]
     out = []
@@ -297,8 +377,9 @@ def main() -> int:
         print(f"usage-check: {tok['error']}", file=sys.stderr)
         return 2
 
-    wallets = wallet_balances(env) if args.live else []
-    health = route_health(env) if args.live else []
+    cfg = load_config()
+    wallets = wallet_balances(env, cfg) if args.live else []
+    health = route_health(env, cfg) if args.live else []
     if args.live and wallets:
         save_snapshot(wallets)
     deltas = spend_deltas()
@@ -344,7 +425,10 @@ def main() -> int:
         print()
         print(f"{BOLD}WALLETS{RESET}")
         if not wallets:
-            print(f"  {DIM}none reachable{RESET}")
+            # Distinguish "you configured nothing" from "your providers are down",
+            # because the second one is alarming and this one is a setup step.
+            print(f"  {DIM}none configured - {CONFIG} lists the wallets to probe"
+                  f"{RESET}")
         seen_wallet: dict[str, float] = {}
         for w in wallets:
             if w.get("ok"):
@@ -373,9 +457,9 @@ def main() -> int:
             for d in deltas:
                 if abs(d["spent"]) < 0.0001:
                     continue
-                # Both apikey.fan keys share one wallet, so its delta would print
-                # twice. Print the money once.
-                key = "apikey.fan" if d["name"].startswith("apikey.fan") else d["name"]
+                # Keys that share a wallet share a delta: print the money once, under
+                # the group name the config declared.
+                key = d.get("shared") or d["name"]
                 if key in shown:
                     continue
                 shown.add(key)
@@ -383,8 +467,9 @@ def main() -> int:
                       f"  {DIM}({d['per_hour']:,.3f}/h){RESET}")
 
         # ── routes ────────────────────────────────────────────────────────
-        print()
-        print(f"{BOLD}ROUTES{RESET}  {DIM}each /health call runs a real completion{RESET}")
+        if not health:
+            print(f"  {DIM}none configured - add a \"gateway\" section to {CONFIG}"
+                  f"{RESET}")
         dead = []
         for h in health:
             if h["state"] == "ok":
