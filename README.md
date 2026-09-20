@@ -54,6 +54,7 @@ takes about 50 ms. Making that an LLM call would be slower and worse. Jev's job 
 
 ```
 crates/jev-ax/     macOS Accessibility observation + execution (the port target)
+crates/jev-voice/  voice hook path
 docs/              prd, architecture, rules, design, tasks, memory
 .metagpt/          STATE.md, GATE.json, interview.md — where we are and what gate we are at
 reference/         points at the working Python system this is ported from
@@ -74,6 +75,15 @@ cargo clippy --workspace --all-targets -- -D warnings
 **Every change lands as a small PR with CI green.** No direct pushes to `main`. A PR
 without a passing run is not reviewable — see `.github/pull_request_template.md`.
 
+## Scripts
+
+| Script | What it does |
+| --- | --- |
+| `scripts/install-voice-hook.sh` | Builds and installs the voice hook, then prints what to put in CoCo Voice's settings. |
+| `scripts/voice-hook` | The file CoCo Voice runs per transcript. Reads its config from the environment. |
+| `scripts/repo-check` | Audits a repo against the standing standard: required files, credentials, machine paths, docs. |
+| `scripts/usage-check` | Where tokens and money went, from your own providers and the local turn log. |
+
 ## Licence
 
 Apache-2.0. Chosen over MIT for the explicit patent grant, which matters for a project
@@ -91,3 +101,17 @@ To avoid any confusion about what is official:
 - **What is ours** is `crates/jev-ax`: the macOS Accessibility observation and execution
   layer, written in Rust, shaped so that decision layer can drive the desktop instead of
   a browser.
+
+## Relationship to other projects
+
+To avoid any confusion about what is official:
+
+- **Jev** is TypeSafe's System One model. It is not ours, and this repo does not wrap or
+  fork it.
+- **`browser-use/jev-ultrafast`** is the upstream project this repo's browser counterpart
+  comes from. The decision layer is **imported from it, never modified**. This repo is
+  not an official Browser Use or TypeSafe project.
+- **What is ours** is `crates/jev-ax`: the macOS Accessibility observation and execution
+  layer, written in Rust, shaped so that decision layer can drive the desktop instead of
+  a browser.
+
