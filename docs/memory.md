@@ -429,10 +429,47 @@ is recorded in a test rather than papered over.
 - On this machine `strip = "symbols"` in the release profile warns: `rust-objcopy` cannot
   find `libLLVM.dylib` in the toolchain. The build is fine; the binary is just unstripped.
 
-**Installed but not switched on:** `~/.local/bin/jev-voice-hook` exists and
-`scripts/voice-hook` is ready to be the `external_script_path`, but the app still runs
-`paste_method: ctrl_v`. Flipping it is a one-way change to how typing works on this
-machine, so it is the owner's call, not an agent's edit.
+**Switched on, and verified as far as a machine can verify it:** the owner approved the
+flip, so Coco Voice now runs `paste_method: external_script` with
+`external_script_path: /Users/rijulkalra/code/jev-use/scripts/voice-hook`. The app's own
+log confirms it loaded the new settings, not just that the file says so:
+
+```
+[..][coco_voice_lib::settings][DEBUG] Loaded settings: AppSettings { ..
+  paste_method: ExternalScript, ..
+  external_script_path: Some("/Users/rijulkalra/code/jev-use/scripts/voice-hook") }
+```
+
+Before the flip, every real dictation in that log read `Using paste method: CtrlV` - which
+is what stops being true now.
+
+**The environment is the part worth having tested.** A GUI app does not hand its child a
+login shell's environment, so the hook was run under `env -i HOME="$HOME"
+PATH=/usr/bin:/bin:/usr/sbin:/sbin"`, through the wrapper, into a scratch TextEdit
+document: **exit 0, 0.28 s, byte-identical text.** That rules out the failure mode this
+kind of hook usually dies of, a `pbcopy` or `osascript` that is simply not on the PATH.
+
+**Rollback, if dictation ever feels wrong**, in one go - quit, two settings, relaunch:
+
+```
+osascript -e 'quit app "Coco Voice"'
+python3 - <<'PY'
+import json, pathlib
+p = pathlib.Path.home()/'Library/Application Support/com.cocoresearch.cocovoice/settings_store.json'
+d = json.loads(p.read_text()); s = d.get('settings', d)
+s['paste_method'] = 'ctrl_v'; s['external_script_path'] = None
+p.write_text(json.dumps(d, indent=2))
+PY
+open -a "Coco Voice"
+```
+
+A timestamped backup of the original file is next to it (`settings_store.json.bak-*`).
+
+**Still unproven, and only a human can close it:** that the app spawns the hook when
+speech arrives. Nothing can exercise the microphone path without recording ambient audio,
+which is not an agent's call to make. The 5-second test: press **Ctrl**, say *"Emma, open
+a new tab"*, release - then `tail -1 ~/Library/Logs/jev-voice-hook.log` should show the
+utterance and a `backgrounded pid` line.
 
 
 ## Dead ends - do not repeat these
