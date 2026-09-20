@@ -1,15 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="Coco Research">
   <rect width="1600" height="900" fill="#000000"/>
-  <defs>
-    <linearGradient id="intelligence" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#C2A8FF"/>
-      <stop offset="50%" stop-color="#7FB8FF"/>
-      <stop offset="100%" stop-color="#A6F0CD"/>
-    </linearGradient>
-  </defs>
-  <!-- Company mark from coco/assets/logo.svg — interlocked C-arcs only -->
   <g transform="translate(800,290) scale(1.85) translate(-256,-258)" fill="none" stroke-linecap="round">
+    <!-- Anchor C — white (logo.svg) -->
     <path d="M 232 158 A 100 100 0 1 0 232 358" stroke="#FFFFFF" stroke-width="24"/>
-    <path d="M 280 158 A 100 100 0 1 1 280 358" stroke="url(#intelligence)" stroke-width="24"/>
+    <!-- Accent C — Direction B stops as solid arc segments -->
+    <path d="M 280 158 A 100 100 0 0 1 356 200" stroke="#C2A8FF" stroke-width="24"/>
+    <path d="M 356 200 A 100 100 0 0 1 356 316" stroke="#7FB8FF" stroke-width="24"/>
+    <path d="M 356 316 A 100 100 0 0 1 280 358" stroke="#A6F0CD" stroke-width="24"/>
   </g>
 </svg>
