@@ -463,6 +463,13 @@ d = json.loads(p.read_text()); s = d.get('settings', d)
 others to use their own keys, not ours."* Not a security incident - an audit that found
 the repo usable only on this machine.
 
+**And the rule was already written down.** `AGENTS.md` section 4 says *never commit* an
+API key, token or secret, and never an absolute personal path in shipped code. So this
+was not a rule anybody forgot. It was a rule with **nothing able to see a violation**:
+the voice hook and `usage-check` were written by an agent that had read the rule, and
+both still shipped this machine's assumptions. That is the finding worth keeping - a
+rule enforced by memory is a rule that holds until the memory is busy.
+
 **Audit first, and the audit is the evidence:**
 
 | Check | Result |
