@@ -674,12 +674,22 @@ up editing different copies of the same file.**
 1. **A path with spaces is fine but must be quoted.** The app runs the script through
    `Command::new(path)` - no shell - so spaces are harmless there; every script of ours that
    references it must quote it.
-2. **The first end-to-end paste test after the move FAILED**, and the cause was the test,
-   not the product: it created a new TextEdit document and pasted 0.17 s later, before the
-   document was ready. Verified by isolating the halves (the clipboard *did* receive the
-   text; a standalone Cmd+V *did* land) and by re-running the identical test, which passed.
-   A flaky test that fails once in three runs is worth a sentence in the memory rather than
-   a shrug.
+2. **The end-to-end paste test failed twice after the move, for two different reasons
++   that were both the TEST's fault, not the product's.** Getting this right took three
++   runs, and the distinction is the useful part:
++
++   - Failure 1: an empty document and no paste. The test created a TextEdit document and
++     pasted 0.17 s later, sometimes before the document was ready. The hook had run and
++     logged correctly; the clipboard *did* receive the text, and a standalone Cmd+V *did*
++     land, which is how the halves were separated.
++   - Failure 2: the text was there, with junk around it. A leftover document from an
++     earlier debug keystroke was still open, so an exact-match assertion reported a
++     failure that looked like a broken hook.
++
++   The harness now **asserts its own starting state** - every document closed, the front
++   one empty - before it measures anything. Three consecutive runs then matched at 0.15-0.16 s.
++   A test that cannot describe its starting state will eventually report a failure that is
++   worse than useless: a false one, about code that works.
 
 ## Dead ends - do not repeat these
 
