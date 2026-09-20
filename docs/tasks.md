@@ -23,8 +23,15 @@ The live board. Every PR updates this file.
 
 ## Next
 
-- [ ] **T4 - The tree walk** (`ax/walk.rs`) - bounded DFS, seeding windows explicitly (R3),
-  applying the addressability rule (R1), returning an `ElementTable`.
+- [x] **T4 - The tree walk** (`crates/jev-ax/src/walk.rs`) - bounded DFS, windows seeded
+  explicitly (R3), the addressability rule (R1), returning an `ElementTable`. **At parity on
+  four apps**, zero differences: Finder 12/12 elements, Terminal 13/13, PI-Desktop 10/10
+  (Electron), Notes 8/8, with identical fingerprints and `ref.nodes_seen == 2 x port` on every
+  one. Evidence: `scripts/parity --live <app>`.
+  - The walk's decisions are pure functions outside the `macos` module, so ubuntu CI tests
+    them; only the FFI is gated. 18 new tests, 77 in the workspace.
+  - `Element` gained `options`, `current_value`, `selected` and `checked`, because parity
+    compares an element key by key and the reference emits them. The fingerprint is unchanged.
 - [ ] **T5 - The parity harness** - `scripts/parity`, and the specification is now pinned.
   - **Done:** the spec is pinned and vendored (`reference/PINNED.json`, `reference/vendor/ax.py`,
     byte-identical, hash-checked before every run), three modes exist (`--capture`, `--check`,
@@ -34,7 +41,7 @@ The live board. Every PR updates this file.
     T7 land, `--live` is the acceptance test for the walk (R8).
   - **Found while building it:** the reference's `elements_seen` is exactly double the real node
     count (`ax.py:272-273`), so the harness asserts `ref.elements_seen == 2 x port` rather than
-    equality. See D19.
+    equality. See D20.
 - [ ] **T6 - Execution** (`ax/execute.rs`) - `AXPress`, `AXValue` write, keystroke fallback
   (R4). Tested on a real button.
 - [ ] **T7 - `jev-use-rs` CLI** - `--apps`, `--table --app <App>`, matching the existing

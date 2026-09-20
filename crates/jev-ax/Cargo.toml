@@ -53,3 +53,13 @@ objc2-foundation = { version = "0.3", default-features = false, features = [
     "NSString",
     "NSEnumerator",
 ] }
+
+# The walk example prints ONE JSON object for `scripts/parity --live`, and a real screen's
+# labels contain quotes, backslashes and newlines. Hand-rolled JSON is a bug farm there, and a
+# bug in the emitter would be reported as a walk divergence.
+#
+# A dev-dependency, and macOS-scoped, for two reasons: only the example needs it, and the
+# example's macOS half is the only half that renders anything. The ubuntu job still compiles
+# the example - and the walk's pure logic - without it.
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+serde_json = "1"

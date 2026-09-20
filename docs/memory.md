@@ -820,6 +820,54 @@ live observation yields **tuples**, which reported every `rect` as a difference 
 elements; and `relative_to(REPO)` raised on a fixture path given relative to the cwd.
 
 
+### D21 - T4 landed: the walk is at parity on four apps (2026-09-20)
+
+> Numbered D21: D19 landed with the standard's deploy guard and D20 with the parity harness,
+> both while this work was in flight.
+
+**The port has an observation layer, and it is measured rather than asserted.** `observe()`
+in `crates/jev-ax/src/walk.rs` reproduces the reference's walk, and `scripts/parity --live`
+compares the two implementations on the same screen, field by field:
+
+| App | Addressable (ref/port) | Nodes (ref/port) | Fingerprint |
+| --- | --- | --- | --- |
+| Finder | 12 / 12 | 878 / 439 | `8cd813583638dbd4` |
+| Terminal | 13 / 13 | 844 / 422 | `f6ea0c644611c9a7` |
+| PI-Desktop (Electron) | 10 / 10 | 436 / 218 | `30667096f53b29e2` |
+| Notes | 8 / 8 | 896 / 448 | `bfd3a34535cdd836` |
+
+Zero differences on all four: same element count, same order, same roles, labels, rects,
+values and options, and an identical fingerprint. The node counts differ by exactly the factor
+the harness asserts, because of the next paragraph.
+
+**The counter divergence is fixed here and encoded in the harness.** The reference increments
+its node counter twice per node (`ax.py:272-273`), so `elements_seen` is double the nodes it
+walked and its effective cap is half of `MAX_NODES`. The port counts once, which is why the
+harness asserts `ref.elements_seen == 2 x port.nodes_seen` instead of equality. Reproducing a
+measurement bug in new code would have been worse than the bug; halving the cap silently would
+have been a divergence nobody could see.
+
+**`Element` grew four fields: `options`, `current_value`, `selected`, `checked`.** Parity
+compares one element key by key and the reference emits them, so not modelling them would have
+meant a permanent, unexplained diff. The fingerprint is deliberately unchanged: it hashes
+`kind:label:value` only, and that is the reference's expression.
+
+**The split that makes CI useful.** Everything the walk decides without an `AXUIElement` - the
+role-to-kind map, the label fallback order, character-counted truncation, the addressability
+predicate, the child-push order, the text budget join - is a pure function outside the `macos`
+module. Only the FFI is gated, so the ubuntu job tests the walk's behaviour instead of merely
+compiling around it. 18 new tests, 77 in the workspace.
+
+**One trap the parity run confirms is handled:** PI-Desktop, the Electron app that answered
+`CannotComplete (-25204)` on every attribute during the T1 spike, walks cleanly in 0.2 s here.
+Rule R2's messaging timeout is the reason that is a slow walk rather than a hung process.
+
+**What is still missing from the port, stated rather than implied:** the executor (T6) and the
+CLI (T7). Until T7 exists, `scripts/parity --live` runs the walk through
+`crates/jev-ax/examples/walk.rs`, which prints the reference's JSON shape. That example is the
+stand-in, not the interface.
+
+
 ## Dead ends - do not repeat these
 
 ### X1 - Do not try to read a browser page through the accessibility tree (2026-09-19)
