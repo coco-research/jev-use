@@ -23,7 +23,7 @@
 
 | Layer | What you get |
 | --- | --- |
-| **Repo Standard** | Standing instructions every agent/human follows — [`docs/repo-playbook.html`](docs/repo-playbook.html) (Revision 2, 2026-09-20). It declares the checks `scripts/repo-check` runs, and the tool fails when the two lists disagree, so the standard cannot drift quietly. |
+| **Repo Standard** | The playbook every repository carries — [`docs/repo-playbook.html`](docs/repo-playbook.html) (**Revision 3, 2026-09-20**). This repo holds the canonical copy; `scripts/standard-sync` deploys it into every repo under `products/` and proves the copies are identical. `scripts/repo-check` fails when the standard's declared checks and the checks it runs disagree. |
 | **Playbook** | How we work: PR size, evidence, gates, hooks, docs authority |
 | **macOS tools (pre-alpha)** | Local experiments beside the standard — not a product surface |
 
