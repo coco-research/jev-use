@@ -123,3 +123,20 @@ The live board. Every PR updates this file.
     log confirms it loaded that. Verified under a GUI-like minimal environment
     (`env -i`, `PATH=/usr/bin:/bin`): exit 0, 0.28 s, text byte-identical. Rollback and
     the one remaining human-only check are in `docs/memory.md` D13.
+
+- [x] **T16 - A public repo brings its own keys** - the audit found no credential anywhere
+  (the working tree, or all 29 commits) but did find the repo usable only on this machine.
+  - `scripts/usage-check` now ships with **no providers in it**: you list yours in
+    `~/.config/jev-use/usage-check.json` (template provided), keys come from your
+    environment or your auth file, and every path is an env var with a default. This
+    machine's providers moved to that file, and the output was diffed against the old
+    hardcoded behaviour - same balances, same grouping, same routes.
+  - `scripts/voice-hook` takes `JEV_VOICE_HOOK_BIN`, `JEV_USE_BIN`, `JEV_VOICE_MODE` and
+    `JEV_VOICE_TRIGGER`; `scripts/install-voice-hook.sh` installs into your bin directory
+    and prints the settings for your machine. The hook reads no keys at all.
+  - The README states the two rules, and `.githooks/pre-push.local` runs `repo-check` over
+    every **tracked** file, so a credential or a personal path cannot be pushed. That is
+    a different scan from the shared hook's staged diff, and both now run.
+  - Result: `repo-check` went from one gap to `COMPLIANT every check passed`.
+  - Open question for the owner: promote the rule to `docs/rules.md` **R11**? That file
+    requires explicit approval for a rule change, so it is not an agent's call. See D14.

@@ -106,7 +106,7 @@ li{margin:5px 0}
   <h3>Verified by Grok's own inspector, not assumed</h3>
   <pre><span class="c">$ grok inspect</span>
   Project Instructions (3)
-    <span class="g">/Users/rijulkalra/.grok/Agents.md (global, ~1158 tokens)</span>   <span class="c">← mine</span>
+    <span class="g">$HOME/.grok/Agents.md (global, ~1158 tokens)</span>   <span class="c">← mine</span>
   Skills (658)
     <span class="g">jev    user</span>                                                  <span class="c">← mine</span></pre>
   <div class="note"><b>The token count matches:</b> 4,602 bytes reads as ~1,150 tokens. Installed as <b>real files, not symlinks</b> — deliberately, see section 8.</div>
@@ -161,7 +161,7 @@ li{margin:5px 0}
   <p class="sub"><code>--table</code> costs nothing and answers "can Jev even see this app" in under a second. Always start here.</p>
   <pre><span class="c">$</span> jev-use --table --app Terminal
 
-Terminal — rijulkalra — -zsh — 80×24  <span class="b">(465ms, 20 addressable of 878 nodes)</span>
+Terminal — you — -zsh — 80×24  <span class="b">(465ms, 20 addressable of 878 nodes)</span>
   <span class="y">[1]</span> radiobutton    ~ — -zsh ="True" [x]
   <span class="y">[2]</span> button         Close tab
   <span class="y">[3]</span> button         new tab
@@ -243,7 +243,7 @@ Terminal — rijulkalra — -zsh — 80×24  <span class="b">(465ms, 20 addressa
       <thead><tr><th>Symptom</th><th>Cause</th></tr></thead>
       <tbody>
         <tr><td><code>jev-use --apps</code> errors</td><td>Accessibility permission missing → System Settings → Privacy &amp; Security → Accessibility</td></tr>
-        <tr><td>Jev route fails</td><td>No key on either route</td></tr>
+        <tr><td>Jev route fails</td><td>No key on either route — supply <b>your own</b> key where your driver looks for it (an environment variable, or a file you point it at). This repo holds no keys and reads none.</td></tr>
         <tr><td>App listed but table empty</td><td>No window open, or a11y disabled</td></tr>
       </tbody>
     </table>

@@ -1,9 +1,9 @@
 #!/bin/sh
-# The voice hook. This is the file to point CoCo Voice at:
+# The voice hook - the file CoCo Voice runs for every transcript.
 #
 #   settings_store.json:
 #     "paste_method": "external_script",
-#     "external_script_path": "/Users/<you>/code/jev-use/scripts/voice-hook"
+#     "external_script_path": "<wherever you cloned this>/scripts/voice-hook"
 #
 # READ THIS FIRST: `external_script` REPLACES typing. The moment it is switched on,
 # dictation stops working unless this hook types the text - which it does, by pressing
@@ -16,7 +16,20 @@
 #     no shell parsing of what you said
 #   - the hook always exits 0, because a non-zero exit is reported as a paste failure
 #
-# CONFIGURATION - the flags below are the whole config.
+# CONFIGURATION. Every value below is an environment variable with a default, so this
+# file works on someone else's machine without being edited. Set them wherever the app
+# gets its environment, or edit the defaults here:
+#
+#   JEV_VOICE_HOOK_BIN   the hook binary.
+#                        Default: $HOME/.local/bin/jev-voice-hook
+#                        scripts/install-voice-hook.sh puts it there.
+#   JEV_USE_BIN          what a command is handed to.
+#                        Default: jev-use on PATH, else $HOME/.local/bin/jev-use.
+#                        Point it at your own driver. This repo does not ship one yet
+#                        (T7 will); the Python reference is not the only thing that can
+#                        answer a goal.
+#   JEV_VOICE_MODE       prefix | classify | dictation | command. Default: prefix
+#   JEV_VOICE_TRIGGER    the wake word. Default: emma
 #
 #   --mode prefix      a command only when the utterance opens with the trigger word.
 #                      Exact, so it cannot eat dictation. DEFAULT.
@@ -28,10 +41,9 @@
 #
 #   --trigger emma     the wake word, matched case-insensitively and ignoring the
 #                      punctuation speech-to-text adds after it ("Emma," / "EMMA!").
-#                      "Emma" is also the name of the voice front end in docs/prd.md.
 #
-#   --jev-use PATH     what a command is handed to. The Python reference for now: the
-#                      Rust port has no CLI yet (T7).
+# NO KEYS ARE READ HERE, and no API is called. Whatever your driver does with the goal -
+# and whatever keys that needs - is the driver's business, and yours.
 #
 # Try it without speaking, safely - this decides and prints, and touches nothing:
 #
@@ -39,10 +51,13 @@
 #   scripts/voice-hook --dry-run "Dear team, following up on the invoice"
 #
 # The log is ~/Library/Logs/jev-voice-hook.log: one line per utterance, and one per
-# backgrounded Jev run with its exit code.
+# backgrounded run with its exit code.
 
-exec "$HOME/.local/bin/jev-voice-hook" \
-  --mode prefix \
-  --trigger emma \
-  --jev-use "$HOME/.local/bin/jev-use" \
+HOOK_BIN="${JEV_VOICE_HOOK_BIN:-$HOME/.local/bin/jev-voice-hook}"
+JEV_BIN="${JEV_USE_BIN:-$(command -v jev-use 2>/dev/null || printf '%s' "$HOME/.local/bin/jev-use")}"
+
+exec "$HOOK_BIN" \
+  --mode "${JEV_VOICE_MODE:-prefix}" \
+  --trigger "${JEV_VOICE_TRIGGER:-emma}" \
+  --jev-use "$JEV_BIN" \
   "$@"

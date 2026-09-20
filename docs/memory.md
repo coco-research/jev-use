@@ -431,13 +431,13 @@ is recorded in a test rather than papered over.
 
 **Switched on, and verified as far as a machine can verify it:** the owner approved the
 flip, so Coco Voice now runs `paste_method: external_script` with
-`external_script_path: /Users/rijulkalra/code/jev-use/scripts/voice-hook`. The app's own
+`external_script_path: $HOME/code/jev-use/scripts/voice-hook`. The app's own
 log confirms it loaded the new settings, not just that the file says so:
 
 ```
 [..][coco_voice_lib::settings][DEBUG] Loaded settings: AppSettings { ..
   paste_method: ExternalScript, ..
-  external_script_path: Some("/Users/rijulkalra/code/jev-use/scripts/voice-hook") }
+  external_script_path: Some("$HOME/code/jev-use/scripts/voice-hook") }
 ```
 
 Before the flip, every real dictation in that log read `Using paste method: CtrlV` - which
@@ -457,6 +457,61 @@ python3 - <<'PY'
 import json, pathlib
 p = pathlib.Path.home()/'Library/Application Support/com.cocoresearch.cocovoice/settings_store.json'
 d = json.loads(p.read_text()); s = d.get('settings', d)
+### D14 - A public repo brings its own keys. Ours stay ours (2026-09-20)
+
+**The rule, stated by the owner:** *"what we are pushing to the public repo should allow
+others to use their own keys, not ours."* Not a security incident - an audit that found
+the repo usable only on this machine.
+
+**Audit first, and the audit is the evidence:**
+
+| Check | Result |
+| --- | --- |
+| Key-shaped strings in the working tree | **none** (the only hit was a placeholder that names itself as one) |
+| Key-shaped strings across all 29 commits, every blob | **none** |
+| `repo-check` credentials scan | pass, 34 files |
+| `repo-check` machine paths | **GAP: 3 occurrences in 2 files** - a home directory baked into docs |
+| Vendor/account assumptions in code | `usage-check` read our provider list, our wallet topology and our gateway from hardcoded constants |
+
+**What changed, and the principle behind each:**
+
+1. **`usage-check` ships with NO providers.** It lists none, names none and knows none.
+   The operator names theirs in `~/.config/jev-use/usage-check.json` (template:
+   `scripts/usage-check.example.json`), and the tool reports `none configured` - not
+   `none reachable` - when that file is absent, because those are different problems and
+   only one of them is alarming. Every path is an env var with a default:
+   `JEV_USAGE_CONFIG`, `JEV_USAGE_DB`, `JEV_KEYS_FILE`, `JEV_AUTH_FILE`, `JEV_USAGE_STATE`.
+2. **Machine-specific settings live outside the repo.** This machine's providers moved to
+   `~/.config/jev-use/usage-check.json`, and the output was diffed against the old
+   hardcoded behaviour: same balances, same wallet grouping, same route health. A fork
+   now behaves like a fresh install and asks for keys instead of inheriting ours.
+3. **`scripts/voice-hook` reads its config from the environment** (`JEV_VOICE_HOOK_BIN`,
+   `JEV_USE_BIN`, `JEV_VOICE_MODE`, `JEV_VOICE_TRIGGER`), and
+   `scripts/install-voice-hook.sh` installs it into *your* bin directory and prints the
+   settings for *your* machine. The hook reads no keys at all - whatever the driver does
+   with a goal is the driver's business.
+4. **The README states both rules** and the gate enforces them: no credential ever, in
+   code, docs, examples or fixtures; no machine-specific path ever.
+5. **`.githooks/pre-push.local` runs `repo-check`** - the hook's documented extension
+   point - so the whole tracked tree is scanned on every push. That is a different check
+   from the shared hook's staged-diff scan: a key committed three commits ago is invisible
+   to a diff scan and obvious to this one. `repo-check` now reports `COMPLIANT  every
+   check passed`, up from one gap.
+
+**One thing worth knowing about the two scans.** Neither alone is enough. The shared hook
+scans the staged diff and so catches a key as it is typed; `repo-check` scans tracked
+files and so catches one already in history. Both run on every push now.
+
+**Deliberately left alone, and why:**
+
+- `docs/memory.md` still names vendors in its decision log, because that is what a
+  decision log is for; names are not credentials. It is also the one public place where
+  this machine's topology is described. Say the word and it gets scrubbed.
+- `docs/prd.md` names the project owner. A public repo may name its owner.
+- The rule is stated in the README rather than added to `docs/rules.md`. That file says a
+  rule change needs the owner's explicit approval, so promoting this to **R11** is a
+  decision to make on purpose, not in passing.
+
 s['paste_method'] = 'ctrl_v'; s['external_script_path'] = None
 p.write_text(json.dumps(d, indent=2))
 PY

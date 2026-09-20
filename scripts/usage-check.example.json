@@ -1,0 +1,40 @@
+{
+  "_comment": [
+    "Copy to ~/.config/jev-use/usage-check.json and put YOUR providers in it.",
+    "usage-check ships with no providers: --live probes exactly what is listed here,",
+    "and nothing at all when this file is absent. No key lives in this file - it names",
+    "the environment variable (or the auth-file entry) that holds one."
+  ],
+
+  "wallets": [
+    {
+      "_comment": "Flat balance field. `group` is for one wallet behind several keys.",
+      "name": "Example: pay-per-use provider",
+      "url": "https://api.example.com/user/balance",
+      "key_env": "EXAMPLE_API_KEY",
+      "balance_field": "balance",
+      "unit": "USD",
+      "group": "example",
+      "note": "pay-per-use"
+    },
+    {
+      "_comment": "Credits pair (total_credits / total_usage), as OpenRouter returns.",
+      "name": "Example: credits provider",
+      "url": "https://api.example.com/v1/credits",
+      "auth_file_key": "example",
+      "credits": true,
+      "unit": "USD",
+      "note": "overflow lane"
+    }
+  ],
+
+  "gateway": {
+    "_comment": [
+      "Optional. A LiteLLM-compatible gateway answers /health?model=<id> with one real",
+      "completion per model. Omit this section and no route probe is attempted."
+    ],
+    "base_url": "http://127.0.0.1:4010",
+    "key_env": "LITELLM_MASTER_KEY",
+    "models": ["your-model-id", "another-model-id"]
+  }
+}
