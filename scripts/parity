@@ -1,0 +1,371 @@
+#!/usr/bin/env python3
+"""parity - prove the port observes a screen the way the reference does.
+
+WHY THIS EXISTS: rule R8. `crates/jev-ax` is a port of a working system, and "it looks
+right" is not a measurement. This runs the reference and, once the port can be built, runs
+the port on the same app and diffs the two tables field by field.
+
+THREE MODES, because one is not enough:
+
+    --capture <app>     run the reference and freeze what it saw, together with the state
+                        that produced it. Run deliberately, after an OS or app change.
+    --check <fixture>   run the reference again and diff it against the frozen capture.
+                        Same machine, same app, different answer: that is a regression.
+    --live <app>        run BOTH implementations back to back and diff them. This is the
+                        mode rule R8 actually asks for, and it needs the port's CLI (T7).
+
+THE SPECIFICATION IS PINNED. `reference/PINNED.json` records its hash, byte count and the
+pyobjc version that was measured. Every mode verifies the hashes first and refuses to run
+when the specification has moved, because a diff against a changed specification reports the
+port as broken when the truth is that the target moved.
+
+WHY THE COUNTS ARE NOT COMPARED DIRECTLY. The reference increments its node counter twice
+per node (`ax.py:272-273`), so `elements_seen` is double the nodes actually walked and its
+effective cap is half of `MAX_NODES`. That is preserved rather than fixed - it is the
+specification - and this harness encodes the difference, so it shows up as a known relation
+instead of as a false divergence.
+
+Exit codes: 0 same, 1 different, 2 could not run (and it says which of those it was).
+"""
+from __future__ import annotations
+
+import argparse
+import datetime as _dt
+import hashlib
+import importlib.util
+import json
+import os
+import platform
+import shlex
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+PIN_FILE = REPO / "reference" / "PINNED.json"
+VENDORED = REPO / "reference" / "vendor" / "ax.py"
+FIXTURES = REPO / "reference" / "fixtures"
+
+# What the port's CLI will be, once T7 exists. `architecture.md` already fixes the shape.
+DEFAULT_PORT_CMD = "cargo run --quiet -p jev-ax -- --table --app {app} --json"
+
+# The fields that make up one addressable element, in the reference's key order.
+ELEMENT_KEYS = ("id", "node", "kind", "label", "role", "rect")
+
+OK, BAD, DIM, OFF = "\033[32m", "\033[31m", "\033[2m", "\033[0m"
+
+if not sys.stdout.isatty():
+    OK = BAD = DIM = OFF = ""
+
+
+def fail(message: str) -> int:
+    """Refuse to run, and say why in one line the reader can act on."""
+    print(f"{BAD}parity: {message}{OFF}", file=sys.stderr)
+    return 2
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def pretty(path: Path) -> str:
+    """Repo-relative when the path is inside the repo, absolute when it is not.
+
+    A relative path handed in on the command line is resolved first, or `relative_to`
+    raises on a path that is obviously fine - measured, with `--check` on a fixture named
+    relative to the cwd.
+    """
+    try:
+        return str(Path(path).resolve().relative_to(REPO))
+    except ValueError:
+        return str(path)
+
+
+def load_pin() -> dict:
+    return json.loads(PIN_FILE.read_text(encoding="utf-8"))
+
+
+def verify_specification(pin: dict, prefer_vendored: bool) -> Path:
+    """Return the reference file to use, or raise when it is not the pinned one.
+
+    The canonical file is preferred while it exists, because that is the artifact the port
+    is actually chasing. The vendored copy is the fallback for a machine that does not have
+    the reference directory, and it is verified against the same hash.
+    """
+    want = pin["sha256"]
+    got_vendored = sha256(VENDORED)
+    if got_vendored != want:
+        raise RuntimeError(
+            f"{pretty(VENDORED)} does not match the pin "
+            f"({got_vendored[:16]} != {want[:16]})"
+        )
+
+    canonical = Path(pin["specification"].replace("$HOME", str(Path.home())))
+    if canonical.exists() and not prefer_vendored:
+        got = sha256(canonical)
+        if got != want:
+            raise RuntimeError(
+                "the specification moved: "
+                f"{pin['specification']} is {got[:16]}, pinned as {want[:16]}. "
+                "Either re-pin it deliberately, or port against the pinned copy."
+            )
+        return canonical
+    return VENDORED
+
+
+def load_reference(path: Path):
+    """Import the reference by path. D4: imported, never forked or wrapped."""
+    spec = importlib.util.spec_from_file_location("jev_reference_ax", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot import {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def redact(value, home: str):
+    """Replace the home directory with $HOME, and tuples with lists.
+
+    Redaction: values from a real screen contain real paths - a Terminal label held this
+    machine's home directory during the first capture - and a public repository does not
+    carry one. Redacting both sides of a comparison keeps the diff exact.
+
+    Tuples become lists: a fixture returns from JSON as lists while a live observation
+    yields tuples, so comparing them raw reports every rectangle as a difference. Measured,
+    that was all 12 elements of a Finder capture, on `rect` alone.
+    """
+    if isinstance(value, str):
+        return value.replace(home, "$HOME")
+    if isinstance(value, (list, tuple)):
+        return [redact(v, home) for v in value]
+    if isinstance(value, dict):
+        return {k: redact(v, home) for k, v in value.items()}
+    return value
+
+
+def project(state: dict, home: str) -> dict:
+    """The comparable part of an observation, with volatile fields kept out.
+
+    `nodes` is dropped because it is a live object map, not a fact about the screen;
+    `elapsed_ms` is dropped because it measures the machine, not the tree.
+    """
+    actions = []
+    for a in state.get("actions", []):
+        entry = {k: redact(a.get(k), home) for k in ELEMENT_KEYS}
+        for k, v in a.items():
+            if k in ELEMENT_KEYS or v in (None, "", False):
+                continue
+            entry[k] = redact(v, home)
+        actions.append(entry)
+
+    return {
+        "app": state.get("app"),
+        "title": state.get("title"),
+        "fingerprint": state.get("fingerprint"),
+        "elements_seen": state.get("elements_seen"),
+        "hidden": state.get("hidden"),
+        "truncated": state.get("truncated"),
+        "actions": actions,
+    }
+
+
+def environment() -> dict:
+    """The state that produced a capture, recorded next to it."""
+    import importlib.metadata as md
+
+    versions = {"macOS": platform.mac_ver()[0]}
+    for pkg in ("pyobjc-core", "pyobjc-framework-Cocoa", "pyobjc-framework-Quartz"):
+        try:
+            versions[pkg] = md.version(pkg)
+        except Exception:  # noqa: BLE001 - a missing binding is worth recording, not dying
+            versions[pkg] = None
+    return versions
+
+
+def observe(app: str | None) -> dict:
+    """One live observation, through the reference, from whichever copy is verified."""
+    prefer_vendored = bool(os.environ.get("JEV_PARITY_VENDORED"))
+    module = load_reference(verify_specification(load_pin(), prefer_vendored))
+    return module.observe(app)
+
+
+def capture(app: str, out: Path) -> int:
+    home = str(Path.home())
+    state = observe(app)
+    payload = {
+        "fixture": app,
+        "captured": _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "pin": {"sha256": load_pin()["sha256"], "bytes": load_pin()["bytes"]},
+        "environment": environment(),
+        "home_redacted_as": "$HOME",
+        "redactions": json.dumps(project(state, "\0never\0")).count(home),
+        "note": (
+            "`elements_seen` is the reference's own counter, which increments twice per node "
+            "(ax.py:272-273). It is double the nodes walked."
+        ),
+        "table": project(state, home),
+    }
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    table = payload["table"]
+    print(f"parity: captured {app} -> {pretty(out)}")
+    print(f"  {len(table['actions'])} addressable, {table['elements_seen']} counted nodes, "
+          f"truncated={table['truncated']}, {payload['redactions']} redaction(s)")
+    return 0
+
+
+def compare_counts(ref: dict, other: dict, label: str, known_divergence: bool) -> list[str]:
+    """Field-by-field count comparison, with the doubled counter handled explicitly."""
+    out: list[str] = []
+    for key in ("hidden", "truncated"):
+        if ref[key] != other[key]:
+            out.append(f"{label}: {key} ref={ref[key]} got={other[key]}")
+
+    r, o = ref["elements_seen"], other["elements_seen"]
+    if known_divergence:
+        # The port counts one per node, deliberately. The reference must be exactly double.
+        if r != 2 * o:
+            out.append(
+                f"{label}: elements_seen ref={r} got={o} - expected the reference to be "
+                f"exactly double the port (2 x {o} = {2 * o})"
+            )
+    elif r != o:
+        out.append(f"{label}: elements_seen ref={r} got={o}")
+    return out
+
+
+def compare_tables(ref: dict, other: dict, label: str, known_divergence: bool) -> list[str]:
+    diffs = compare_counts(ref, other, label, known_divergence)
+
+    if ref["fingerprint"] != other["fingerprint"]:
+        diffs.append(
+            f"{label}: fingerprint ref={ref['fingerprint']} got={other['fingerprint']} "
+            "(sha256 over `kind:label:value` rows joined by '|')"
+        )
+    if ref["title"] != other["title"]:
+        diffs.append(f"{label}: title ref={ref['title']!r} got={other['title']!r}")
+
+    a, b = ref["actions"], other["actions"]
+    if len(a) != len(b):
+        diffs.append(f"{label}: {len(a)} addressable elements vs {len(b)}")
+    for i, (ra, rb) in enumerate(zip(a, b)):
+        if ra != rb:
+            keys = sorted(set(ra) | set(rb))
+            changed = [k for k in keys if ra.get(k) != rb.get(k)]
+            shown = ", ".join(f"{k}: {ra.get(k)!r} != {rb.get(k)!r}" for k in changed[:4])
+            diffs.append(f"{label}: element [{i + 1}] differs - {shown}")
+    return diffs
+
+
+def check(fixture: Path, verbose: bool) -> int:
+    fixture = Path(fixture).resolve()
+    if not fixture.exists():
+        return fail(f"no such fixture: {fixture}")
+
+    frozen = json.loads(fixture.read_text(encoding="utf-8"))
+    app = frozen["fixture"]
+    live = project(observe(app), str(Path.home()))
+    diffs = compare_tables(frozen["table"], live, "check", known_divergence=False)
+
+    print(f"parity: reference vs its own capture, {app} "
+          f"{DIM}({pretty(fixture)}, captured {frozen['captured']}){OFF}")
+    print(f"  {len(live['actions'])} addressable, {live['elements_seen']} counted nodes, "
+          f"fingerprint {live['fingerprint']}")
+    if not diffs:
+        print(f"  {OK}the reference still observes this screen identically{OFF}")
+        return 0
+    print(f"  {BAD}the screen changed, or the reference did{OFF}")
+    for line in diffs[: 20 if verbose else 6]:
+        print(f"    {line}")
+    if not verbose and len(diffs) > 6:
+        print(f"    {DIM}... {len(diffs) - 6} more (--verbose for all){OFF}")
+    return 1
+
+
+def live(app: str, port_cmd: str, verbose: bool) -> int:
+    """Both implementations, back to back, then a field-by-field diff (rule R8)."""
+    home = str(Path.home())
+    reference = project(observe(app), home)
+
+    cmd = shlex.split(port_cmd.format(app=app))
+    if not shutil.which(cmd[0]):
+        # The gate's own rule: a missing tool is an environment problem, not a code problem.
+        # Reporting "the port failed" when cargo is simply absent blames the wrong thing.
+        return fail(
+            f"`{cmd[0]}` is not on PATH - environment, not the port. On this machine the "
+            "Rust toolchain is a bare install, so:\n"
+            '    export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"'
+        )
+
+    try:
+        proc = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=600)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return fail(f"could not run the port: {exc}")
+    if proc.returncode != 0:
+        tail = (proc.stderr or proc.stdout).strip().splitlines()[-3:]
+        return fail(
+            "the port did not build or run (T7 adds the CLI):\n    "
+            + "\n    ".join(tail or ["no output"])
+        )
+
+    try:
+        raw = json.loads(proc.stdout[proc.stdout.index("{"):])
+    except (ValueError, json.JSONDecodeError):
+        return fail("the port printed something that is not JSON")
+
+    port = {
+        "app": raw.get("app", app),
+        "title": raw.get("title"),
+        "fingerprint": raw.get("fingerprint"),
+        # The port reports the nodes it walked; the reference reports its doubled counter.
+        "elements_seen": raw.get("nodes_seen", raw.get("elements_seen")),
+        "hidden": raw.get("hidden"),
+        "truncated": raw.get("truncated"),
+        "actions": [
+            {k: redact(a.get(k), home) for k in ELEMENT_KEYS}
+            for a in raw.get("actions", raw.get("elements", []))
+        ],
+    }
+
+    diffs = compare_tables(reference, port, "live", known_divergence=True)
+    print(f"parity: reference vs port, {app}")
+    print(f"  addressable  ref {len(reference['actions'])} / port {len(port['actions'])}")
+    print(f"  nodes        ref {reference['elements_seen']} / port {port['elements_seen']} "
+          f"{DIM}(ref counts twice per node, by design){OFF}")
+    print(f"  fingerprint  ref {reference['fingerprint']} / port {port['fingerprint']}")
+    if not diffs:
+        print(f"  {OK}parity{OFF}")
+        return 0
+    print(f"  {BAD}{len(diffs)} divergence(s){OFF}")
+    for line in diffs[: 20 if verbose else 8]:
+        print(f"    {line}")
+    return 1
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Diff the port against the reference (rule R8).")
+    mode = ap.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--capture", metavar="APP", help="freeze what the reference sees now")
+    mode.add_argument("--check", metavar="FIXTURE", help="is the reference still seeing it?")
+    mode.add_argument("--live", metavar="APP", help="run both implementations and diff them")
+    ap.add_argument("--out", type=Path, help="where --capture writes (default: reference/fixtures)")
+    ap.add_argument("--port-cmd", default=DEFAULT_PORT_CMD,
+                    help=f"how to run the port (default: {DEFAULT_PORT_CMD})")
+    ap.add_argument("--verbose", action="store_true")
+    args = ap.parse_args()
+
+    try:
+        if args.check:
+            return check(Path(args.check), args.verbose)
+        if args.live:
+            return live(args.live, args.port_cmd, args.verbose)
+        out = args.out or (FIXTURES / f"{args.capture.strip().lower().replace(' ', '-')}.json")
+        return capture(args.capture, out)
+    except RuntimeError as exc:
+        return fail(str(exc))
+
+
+if __name__ == "__main__":
+    sys.exit(main())

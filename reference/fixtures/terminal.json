@@ -1,0 +1,26 @@
+{
+  "fixture": "Terminal",
+  "captured": "2026-09-20 14:32:46",
+  "pin": {
+    "sha256": "ecef65ff2ed12c9598a5a12379cc3c60756e004b2df1c7652ceab6425c3918fa",
+    "bytes": 21269
+  },
+  "environment": {
+    "macOS": "26.5.2",
+    "pyobjc-core": "12.2.2",
+    "pyobjc-framework-Cocoa": "12.2.2",
+    "pyobjc-framework-Quartz": "12.2.2"
+  },
+  "home_redacted_as": "$HOME",
+  "redactions": 0,
+  "note": "`elements_seen` is the reference's own counter, which increments twice per node (ax.py:272-273). It is double the nodes walked.",
+  "table": {
+    "app": "Terminal",
+    "title": "Terminal",
+    "fingerprint": "e3b0c44298fc1c14",
+    "elements_seen": 0,
+    "hidden": 0,
+    "truncated": false,
+    "actions": []
+  }
+}
