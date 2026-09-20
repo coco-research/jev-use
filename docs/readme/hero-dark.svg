@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="jev-use — Coco Research company mark">
+  <rect width="1600" height="900" fill="#000000"/>
+  <!-- SoT: coco/assets/logo.svg interlocked C-arcs -->
+  <g transform="translate(800,300) scale(1.15) translate(-256,-258)" fill="none" stroke-linecap="round">
+    <path d="M 232 158 A 100 100 0 1 0 232 358" stroke="#FFFFFF" stroke-width="24"/>
+    <path d="M 280 158 A 100 100 0 0 1 380 258" stroke="#C2A8FF" stroke-width="24"/>
+    <path d="M 380 258 A 100 100 0 0 1 330 340" stroke="#7FB8FF" stroke-width="24"/>
+    <path d="M 330 340 A 100 100 0 0 1 280 358" stroke="#A6F0CD" stroke-width="24"/>
+  </g>
+  <text x="800" y="560" text-anchor="middle" fill="#FFFFFF"
+        font-family="DIN Alternate, D-DIN, Helvetica Neue, sans-serif" font-size="96" font-weight="700"
+        letter-spacing="6">jev-use</text>
+  <text x="800" y="620" text-anchor="middle" fill="#8B9098"
+        font-family="DIN Alternate, D-DIN, Helvetica Neue, sans-serif" font-size="28"
+        letter-spacing="4">repo standard · playbook · pre-alpha</text>
+</svg>
