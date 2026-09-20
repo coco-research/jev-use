@@ -3,19 +3,15 @@ name: ci
 # Every PR must be provably green before merge. This is the "testable PR" contract:
 # a PR without a passing run is not reviewable.
 #
-# WHY ubuntu, NOT macos:
-#   1. GitHub-hosted macOS runners CANNOT test the accessibility code anyway. They have
-#      no logged-in GUI session and no Accessibility permission, so AXUIElement calls
-#      fail there regardless of runner. AX behaviour is verified LOCALLY, by the
-#      pre-push hook and the parity harness.
-#   2. ubuntu is faster and simpler. The cost argument no longer applies now the repo is
-#      public - Actions is free and unlimited for public repositories - but the
-#      capability argument does, and it is the one that matters.
-#
-# So this workflow tests what IS testable in CI: pure logic, types, formatting, lints,
-# docs. The crate is deliberately kept free of macOS-only dependencies so this stays
-# true; macOS-only code goes in a cfg(target_os = "macos") module and is covered locally.
-# See docs/rules.md R8 and docs/memory.md D7.
+# WHERE EACH JOB RUNS, AND WHY:
+#   ubuntu  - lint, test, docs. Pure logic, types, formatting, the fingerprint, the caps.
+#             Fast, free, and the right place for everything that is not macOS.
+#   self-hosted macOS - the accessibility path. It is cfg(target_os = "macos"), so no
+#             ubuntu runner ever compiles it, and a GITHUB-HOSTED macOS runner cannot test
+#             it either: no logged-in GUI session, no accessibility grant. The only place
+#             that can run it is a machine with both, which is what `coco-mac-jevu` is.
+# See docs/memory.md D16 for the registration and the security guard that keeps fork pull
+# requests off that machine.
 on:
   push:
     branches: [main]
@@ -70,3 +66,88 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo doc --workspace --no-deps
+
+  # The macOS path, on a machine that has one.
+  #
+  # WHY THIS JOB EXISTS: the accessibility code is cfg(target_os = "macos"), so an ubuntu
+  # runner never compiles it - CI could not verify a single line of it, and the local
+  # pre-push hook was the only thing that ever ran it. This job runs it in CI, on the
+  # self-hosted runner `coco-mac-jevu`, which has a real GUI session.
+  #
+  # SECURITY, AND WHY THE GUARD IS NOT OPTIONAL: this repository is public, and a
+  # self-hosted runner executes whatever a workflow asks it to, on a real machine, with a
+  # real logged-in user. A pull request from a fork must never reach it. The `if` below
+  # allows branches of THIS repository only. Removing it to "make forks work" would hand
+  # anyone who can open a PR a shell on this Mac. See docs/memory.md D16.
+  macos:
+    name: macOS (self-hosted)
+    runs-on: [self-hosted, macOS]
+    if: >-
+      github.event_name != 'pull_request'
+      || github.event.pull_request.head.repo.full_name == github.repository
+    # One runner serves this repo. A job that hangs would block every later job, so this is
+    # short on purpose; the AX messaging timeout (rule R2) protects the tests themselves.
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # No toolchain action on purpose: this runner IS the environment under test - its
+      # Xcode, its accessibility grant, its machine. Installing a different toolchain here
+      # would be testing a machine nobody uses. Print what it is instead.
+      # Two things at once, and both are load-bearing.
+      #
+      # EVIDENCE: this machine IS the thing under test - its macOS version, its Rust, its
+      # accessibility grant - so print them rather than describing them.
+      #
+      # PATH. Two facts, both measured rather than assumed:
+      #   1. a launchd-launched runner does not hand its steps the user's PATH, so Rust
+      #      was installed and invisible at the same time;
+      #   2. on this machine `~/.cargo/bin` is a directory of symlinks to a `rustup` that
+      #      is not installed, so adding that directory changes nothing. The toolchain that
+      #      actually runs is the one under `~/.rustup/toolchains/`.
+      # The path is derived, not hardcoded: no architecture and no user's home directory
+      # in a public workflow.
+      - name: environment
+        run: |
+          toolchain=$(ls -d "$HOME"/.rustup/toolchains/stable*/bin 2>/dev/null | head -1)
+          if [ -z "$toolchain" ]; then
+            toolchain=$(ls -d "$HOME"/.rustup/toolchains/*/bin 2>/dev/null | head -1)
+          fi
+          if [ -n "$toolchain" ]; then
+            echo "$toolchain" >> "$GITHUB_PATH"
+          fi
+          echo "cargo on PATH now: $(PATH="$toolchain:$PATH" command -v cargo || echo none)"
+          echo "host:  $(hostname)"
+          echo "macOS: $(sw_vers -productVersion)"
+          echo "rust:  $(rustc --version)"
+          echo "cargo: $(cargo --version)"
+
+      # Compiling is not the same as being allowed to look: accessibility is granted per
+      # process by TCC, in System Settings, by a human. That is an ENVIRONMENT gap, not a
+      # code failure, and this repo already draws that line in the pre-push hook ("a
+      # missing tool is an environment problem, not a code problem"). So this step reports
+      # and annotates rather than failing - and the moment the grant exists, the tests
+      # below run without anyone editing this file.
+      - name: accessibility permission
+        id: ax
+        continue-on-error: true
+        run: cargo run --quiet --example check_access -p jev-ax
+
+      # The real thing: the live AX tests, on real apps. Runs only when the process is
+      # actually allowed to look, because a test that cannot see anything proves nothing.
+      - name: test (macOS path, for real)
+        if: steps.ax.outcome == 'success'
+        run: cargo test --workspace --all-features
+
+      # Skipped is not the same as passed, and the difference has to be on the screen.
+      - name: what this run could not test
+        if: steps.ax.outcome != 'success'
+        run: |
+          echo "::warning title=macOS path UNTESTED on this run::The runner has no Accessibility grant, so the live AX tests did not run. Grant it once in System Settings -> Privacy & Security -> Accessibility ($HOME/actions-runner-jevu/bin/Runner.Listener), then this job tests the macOS path for real."
+          {
+            echo "### macOS path: NOT TESTED on this run"
+            echo
+            echo "The runner answered \`-25211\` (APIDisabled): the process is not trusted for accessibility."
+            echo "Nothing about the code is known to be wrong, and nothing about it is verified either."
+            echo "Grant \\`bin/Runner.Listener\\` in System Settings -> Privacy & Security -> Accessibility."
+          } >> "$GITHUB_STEP_SUMMARY"
