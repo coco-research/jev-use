@@ -256,6 +256,15 @@ def check_secrets(repo: Path, files: list[str]) -> list[Finding]:
         out.append(Finding(2, "credentials outside test/evidence", False,
                            f"{len(soft)} in fixtures or logs: {shown}",
                            "expected in fixtures; confirm each is a placeholder"))
+    else:
+        # Emitted even when it passes. check_playbook compares the NAMES of the checks
+        # that ran against the declared list, so a check that names itself only on
+        # failure reads as undocumented - and a repo holding one fixture-shaped key
+        # gets blamed for a standard that never declared it. Measured: a scratch repo
+        # with a tracked playbook and one fake key in tests/ failed the self-check
+        # with "undocumented: credentials outside test/evidence".
+        out.append(Finding(2, "credentials outside test/evidence", True,
+                           "none in fixtures or logs"))
     return out
 
 def check_machine_paths(repo: Path, files: list[str]) -> list[Finding]:
