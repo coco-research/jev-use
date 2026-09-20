@@ -675,33 +675,68 @@ up editing different copies of the same file.**
    `Command::new(path)` - no shell - so spaces are harmless there; every script of ours that
    references it must quote it.
 2. **The paste test failed intermittently, and every failure was FOCUS - not the hook.**
-+   Diagnosing this took three attempts, and the two wrong answers were both convincing,
-+   which is why the whole sequence is here:
-+
-+   - Explanation 1, wrong: "the document was not ready yet."
-+   - Explanation 2, partly true and still wrong: "a leftover document made the assertion
-+     false-fail."
-+   - What actually happened, from instrumenting the failing case rather than reasoning
-+     about it:
-+
-+     ```
-+     run 3: front before=PI-Desktop after=PI-Desktop doc=[] clip=[probe-3] MISSED
-+     ```
-+
-+     Focus was taken by PI-Desktop - the app running the agent - before the keystroke was
-+     sent. The clipboard write succeeded in **every** run, including the failing ones. A
-+     paste goes to whatever is frontmost *when the keystroke is sent*, not when the test
-+     starts.
-+
-+   - The fix is in the harness: assert the document is empty **and** re-check frontmost
-+     immediately before running, retrying rather than reporting a false failure. Five
-+     consecutive runs then matched on the first attempt at 0.14-0.17 s.
-+   - **The product implication, stated plainly:** dictation lands wherever focus is at
-+     paste time. That is inherent to a clipboard-plus-keystroke design - CoCo Voice's own
-+     `ctrl_v` method has exactly the same property - and it is worth knowing rather than
-+     discovering.
-+   - The lesson: two plausible explanations were accepted before the failing case was
-+     instrumented. The instrumented run was one command and settled it.
+   Diagnosing this took three attempts, and the two wrong answers were both convincing,
+   which is why the whole sequence is here:
+
+   - Explanation 1, wrong: "the document was not ready yet."
+   - Explanation 2, partly true and still wrong: "a leftover document made the assertion
+     false-fail."
+   - What actually happened, from instrumenting the failing case rather than reasoning
+     about it:
+
+     ```
+     run 3: front before=PI-Desktop after=PI-Desktop doc=[] clip=[probe-3] MISSED
+     ```
+
+     Focus was taken by PI-Desktop - the app running the agent - before the keystroke was
+     sent. The clipboard write succeeded in **every** run, including the failing ones. A
+     paste goes to whatever is frontmost *when the keystroke is sent*, not when the test
+     starts.
+
+   - The fix is in the harness: assert the document is empty **and** re-check frontmost
+     immediately before running, retrying rather than reporting a false failure. Five
+     consecutive runs then matched on the first attempt at 0.14-0.17 s.
+   - **The product implication, stated plainly:** dictation lands wherever focus is at
+     paste time. That is inherent to a clipboard-plus-keystroke design - CoCo Voice's own
+     `ctrl_v` method has exactly the same property - and it is worth knowing rather than
+     discovering.
+   - The lesson: two plausible explanations were accepted before the failing case was
+     instrumented. The instrumented run was one command and settled it.
+
+### D18 - The fingerprint is the reference's hash, pinned by vectors (2026-09-20)
+
+**Chosen:** `ElementTable::fingerprint` is
+`sha256("|".join(f"{kind}:{label}:{value}")).hexdigest()[:16]` over the addressable table,
+exactly as the reference computes it (`ax.py:372-374`). The previous FNV-1a/64 body, which
+concatenated the same rows with no separator, is gone.
+
+**Why the algorithm is not ours to choose.** R5's repeat guard compares one implementation with
+itself, so any stable hash would satisfy it. R8 compares the string *across* implementations, and
+T5's harness diffs the two tables. A different algorithm therefore reports a port bug on every
+screen with at least one element, and it reports it as "the walk is wrong", which is where a day
+goes.
+
+**Measured live, on this machine** - the driver's own `fingerprint` field against a
+recomputation of the expression from its own `actions` array:
+
+| App | rows | driver | recomputed | match |
+| --- | --- | --- | --- | --- |
+| Terminal | 13 | `f6ea0c644611c9a7` | `f6ea0c644611c9a7` | yes |
+| Finder | 12 | `8cd813583638dbd4` | `8cd813583638dbd4` | yes |
+| Notes | 8 | `bfd3a34535cdd836` | `bfd3a34535cdd836` | yes |
+
+**Vectors, so a divergence is a failed string rather than a feeling.** Five of them: the empty
+table, a row with no value, a numeric value already rendered by `str()`, a non-ASCII label (hashed
+as UTF-8 bytes), and two rows (the separator is part of the contract). The empty-table vector is a
+live value, not a synthetic one: an observation that finds nothing addressable returns
+`e3b0c44298fc1c14`, which is exactly `sha256("")[:16]`.
+
+**Cost:** one dependency, `sha2`, deliberately not target-gated, so ubuntu CI tests the hash and
+all five vectors even though it cannot run a line of the accessibility code.
+
+**Rejected:** keeping FNV-1a and exempting the fingerprint from the parity diff. That breaks R5
+quietly. Two implementations whose fingerprints never coincide either never fire the repeat
+guard, so a loop spins, or fire it immediately, so a good run stops mid-task.
 
 ## Dead ends - do not repeat these
 
