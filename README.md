@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/readme/hero-dark.png" alt="Coco Research — jev-use repo standard" width="840"/>
+<img src="docs/readme/hero-dark.png" alt="jev-use — Coco Research company mark, repo standard" width="840"/>
 
 # jev-use
 
@@ -14,8 +14,8 @@
 
 </div>
 
-> **Coco Research company home for the Repo Standard and agent playbook.**
-> This is **not** a shipped Mac product. Pre-alpha. The hero uses the Coco Research company mark only.
+> **Repo Standard / playbook home for Coco Research agents and humans.**
+> Hero mark = Coco Research company mark (`assets/logo.svg` interlocked C-arcs). **Not** a shipped Mac product. Pre-alpha.
 
 <img src="docs/readme/local-first.png" alt="Repo Standard → Playbook → macOS tools" width="100%"/>
 
