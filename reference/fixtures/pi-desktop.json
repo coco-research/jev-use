@@ -1,0 +1,159 @@
+{
+  "fixture": "PI-Desktop",
+  "captured": "2026-09-20 14:33:00",
+  "pin": {
+    "sha256": "ecef65ff2ed12c9598a5a12379cc3c60756e004b2df1c7652ceab6425c3918fa",
+    "bytes": 21269
+  },
+  "environment": {
+    "macOS": "26.5.2",
+    "pyobjc-core": "12.2.2",
+    "pyobjc-framework-Cocoa": "12.2.2",
+    "pyobjc-framework-Quartz": "12.2.2"
+  },
+  "home_redacted_as": "$HOME",
+  "redactions": 0,
+  "note": "`elements_seen` is the reference's own counter, which increments twice per node (ax.py:272-273). It is double the nodes walked.",
+  "table": {
+    "app": "PI-Desktop",
+    "title": "PI-Desktop",
+    "fingerprint": "30667096f53b29e2",
+    "elements_seen": 436,
+    "hidden": 149,
+    "truncated": false,
+    "actions": [
+      {
+        "id": "n1",
+        "node": "1",
+        "kind": "click",
+        "label": "Apple",
+        "role": "AXMenuBarItem",
+        "rect": [
+          10.0,
+          0.0,
+          34.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n2",
+        "node": "2",
+        "kind": "click",
+        "label": "PI-Desktop",
+        "role": "AXMenuBarItem",
+        "rect": [
+          44.0,
+          0.0,
+          93.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n3",
+        "node": "3",
+        "kind": "click",
+        "label": "File",
+        "role": "AXMenuBarItem",
+        "rect": [
+          137.0,
+          0.0,
+          42.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n4",
+        "node": "4",
+        "kind": "click",
+        "label": "Edit",
+        "role": "AXMenuBarItem",
+        "rect": [
+          179.0,
+          0.0,
+          44.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n5",
+        "node": "5",
+        "kind": "click",
+        "label": "View",
+        "role": "AXMenuBarItem",
+        "rect": [
+          223.0,
+          0.0,
+          50.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n6",
+        "node": "6",
+        "kind": "click",
+        "label": "Window",
+        "role": "AXMenuBarItem",
+        "rect": [
+          273.0,
+          0.0,
+          69.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n7",
+        "node": "7",
+        "kind": "click",
+        "label": "Help",
+        "role": "AXMenuBarItem",
+        "rect": [
+          342.0,
+          0.0,
+          48.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n8",
+        "node": "8",
+        "kind": "fill",
+        "label": "TextField",
+        "role": "AXTextField",
+        "rect": [
+          -1.0,
+          875.0,
+          342.0,
+          26.0
+        ]
+      },
+      {
+        "id": "n9",
+        "node": "9",
+        "kind": "select",
+        "label": "emoji & symbols",
+        "role": "AXPopUpButton",
+        "rect": [
+          -1.0,
+          -1.0,
+          74.0,
+          32.0
+        ],
+        "options": []
+      },
+      {
+        "id": "n10",
+        "node": "10",
+        "kind": "click",
+        "label": "Candidate Bar",
+        "role": "AXDisclosureTriangle",
+        "rect": [
+          640.0,
+          0.0,
+          45.0,
+          30.0
+        ],
+        "value": "False"
+      }
+    ]
+  }
+}

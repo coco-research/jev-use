@@ -1,0 +1,184 @@
+{
+  "fixture": "Finder",
+  "captured": "2026-09-20 14:31:21",
+  "pin": {
+    "sha256": "ecef65ff2ed12c9598a5a12379cc3c60756e004b2df1c7652ceab6425c3918fa",
+    "bytes": 21269
+  },
+  "environment": {
+    "macOS": "26.5.2",
+    "pyobjc-core": "12.2.2",
+    "pyobjc-framework-Cocoa": "12.2.2",
+    "pyobjc-framework-Quartz": "12.2.2"
+  },
+  "home_redacted_as": "$HOME",
+  "redactions": 0,
+  "note": "`elements_seen` is the reference's own counter, which increments twice per node (ax.py:272-273). It is double the nodes walked.",
+  "table": {
+    "app": "Finder",
+    "title": "Finder",
+    "fingerprint": "8cd813583638dbd4",
+    "elements_seen": 878,
+    "hidden": 178,
+    "truncated": false,
+    "actions": [
+      {
+        "id": "n1",
+        "node": "1",
+        "kind": "click",
+        "label": "Apple",
+        "role": "AXMenuBarItem",
+        "rect": [
+          10.0,
+          0.0,
+          34.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n2",
+        "node": "2",
+        "kind": "click",
+        "label": "Finder",
+        "role": "AXMenuBarItem",
+        "rect": [
+          44.0,
+          0.0,
+          62.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n3",
+        "node": "3",
+        "kind": "click",
+        "label": "File",
+        "role": "AXMenuBarItem",
+        "rect": [
+          106.0,
+          0.0,
+          42.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n4",
+        "node": "4",
+        "kind": "click",
+        "label": "Tags\u2026",
+        "role": "AXButton",
+        "rect": [
+          1.0,
+          883.0,
+          41.0,
+          18.0
+        ]
+      },
+      {
+        "id": "n5",
+        "node": "5",
+        "kind": "click",
+        "label": "Edit",
+        "role": "AXMenuBarItem",
+        "rect": [
+          148.0,
+          0.0,
+          44.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n6",
+        "node": "6",
+        "kind": "click",
+        "label": "View",
+        "role": "AXMenuBarItem",
+        "rect": [
+          192.0,
+          0.0,
+          50.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n7",
+        "node": "7",
+        "kind": "click",
+        "label": "Go",
+        "role": "AXMenuBarItem",
+        "rect": [
+          242.0,
+          0.0,
+          38.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n8",
+        "node": "8",
+        "kind": "click",
+        "label": "Window",
+        "role": "AXMenuBarItem",
+        "rect": [
+          280.0,
+          0.0,
+          69.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n9",
+        "node": "9",
+        "kind": "click",
+        "label": "Help",
+        "role": "AXMenuBarItem",
+        "rect": [
+          349.0,
+          0.0,
+          48.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n10",
+        "node": "10",
+        "kind": "fill",
+        "label": "TextField",
+        "role": "AXTextField",
+        "rect": [
+          -1.0,
+          875.0,
+          342.0,
+          26.0
+        ]
+      },
+      {
+        "id": "n11",
+        "node": "11",
+        "kind": "click",
+        "label": "back",
+        "role": "AXButton",
+        "rect": [
+          0.0,
+          0.0,
+          72.0,
+          30.0
+        ]
+      },
+      {
+        "id": "n12",
+        "node": "12",
+        "kind": "select",
+        "label": "View Options",
+        "role": "AXPopUpButton",
+        "rect": [
+          151.0,
+          -1.0,
+          74.0,
+          32.0
+        ],
+        "options": []
+      }
+    ]
+  }
+}

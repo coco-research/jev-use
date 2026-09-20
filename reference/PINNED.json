@@ -1,0 +1,33 @@
+{
+  "what": "The specification this repository ports. `crates/jev-ax` is a port of it, and rule R8 says parity with it is the specification, so its identity is recorded rather than assumed.",
+
+  "specification": "$HOME/code/jev-computeruse/jev_desktop/ax.py",
+  "vendored": "reference/vendor/ax.py",
+
+  "sha256": "ecef65ff2ed12c9598a5a12379cc3c60756e004b2df1c7652ceab6425c3918fa",
+  "bytes": 21269,
+  "mtime": "2026-09-19 21:24:35",
+  "pinned": "2026-09-20",
+
+  "under_version_control": false,
+  "why_vendored": "A specification outside version control is one `rm` away from unreproducible, and that directory has no .git. The vendored copy is byte-identical to the file above; the harness verifies both hashes before it runs anything.",
+
+  "measured_on": {
+    "macOS": "26.5.2 (25F84)",
+    "pyobjc-core": "12.2.2",
+    "pyobjc-framework-Cocoa": "12.2.2",
+    "pyobjc-framework-Quartz": "12.2.2"
+  },
+  "why_versions": "Observation behaviour depends on the pyobjc binding, not only on the script, and the binding is not in the script's hash. A parity run on a different pyobjc is a different experiment, so it is recorded next to the pin.",
+
+  "entry_point": "jev_desktop.ax.observe(app) -> dict",
+  "not_the_cli": "The installed `jev-use` CLI prints this same dict minus its `nodes` key. The harness imports the module and drops `nodes` itself, so a CLI change cannot silently change what is being compared.",
+
+  "known_divergence": {
+    "where": "ax.py:272-273",
+    "what": "`visited += 1` appears twice for one node, so `elements_seen` is double the nodes actually walked and the effective node cap is half of MAX_NODES.",
+    "handling": "Preserved in the reference, never edited. The harness asserts the port reports exactly half and records `truncated` separately, so the divergence is visible in every diff rather than hidden by a matching counter."
+  },
+
+  "how_to_verify": "python3 scripts/parity --check reference/fixtures/finder.json"
+}

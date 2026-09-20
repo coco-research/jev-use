@@ -769,6 +769,56 @@ alone rather than deleted.
 (`Coco Research`), so `git -C <a non-repo> status` answers with the OUTER repo's changes. A
 dirty-check must run on repositories only, or it reports somebody else's files.
 
+### D20 - The specification is pinned, vendored, and now measured by a harness (2026-09-20)
+
+> Numbered D20 because #24 already landed as D19 (dirty-deploy default).
+
+**Three gaps closed, all in service of rule R8.**
+
+**1. The specification was not pinned.** `~/code/jev-computeruse` has no `.git`, so the file
+the port is judged against was one `rm` from unreproducible. `reference/PINNED.json` now
+records its sha256 (`ecef65ff...5c3918fa`), byte count (21269) and mtime, plus the pyobjc
+version - because observation behaviour depends on the binding and the binding is not in the
+script's hash. `reference/vendor/ax.py` is a **byte-identical** copy (`cmp` clean), so the
+spec travels with the repo. Every harness mode re-verifies both hashes before observing
+anything, and refuses with *the specification moved* instead of reporting the port as broken.
+Verified by moving the file on purpose: exit 2, nothing observed.
+
+**2. There was no way to measure parity.** `scripts/parity` has three modes, and the split is
+deliberate: `--capture` freezes a screen **with the state that produced it**; `--check`
+re-observes and diffs, so a regression is a failed diff rather than a feeling; `--live` runs
+both implementations back to back and is the mode R8 actually asks for (it needs T7's CLI,
+and until then it says so and exits 2 rather than pretending).
+
+**3. The documented baselines were being read as targets.** Finder reported **12**, then
+**15**, then **12** addressable elements on the same machine within minutes: selection and the
+frontmost window change what is on screen. `reference/README.md` now says these are evidence
+with a date, and the harness compares against a capture instead of a number.
+
+**Measured, first run:**
+
+```
+$ scripts/parity --capture Finder      -> 12 addressable, 878 counted nodes, 0 redactions
+$ scripts/parity --check  reference/fixtures/finder.json
+  the reference still observes this screen identically
+```
+
+**One thing fell out of it that is worth keeping.** Terminal was running with no window open,
+so its capture is the empty case: 0 addressable and fingerprint `e3b0c44298fc1c14`, which is
+exactly `sha256("")[:16]`. That is the same value the Rust golden-vector test asserts for an
+empty table. Two implementations, one hash, checked from both ends - and the empty case is now
+a fixture rather than a comment.
+
+**Rejected: comparing counts directly.** The reference's doubled node counter (`ax.py:272-273`)
+is preserved, not fixed, so the harness asserts `ref.elements_seen == 2 x port` and reports
+`truncated` separately. A matching counter would have hidden the divergence instead of
+documenting it.
+
+**Two bugs the harness found in itself, in its first ten minutes**, both recorded because they
+are the kind that reads as a port failure: a fixture returns from JSON with **lists** while a
+live observation yields **tuples**, which reported every `rect` as a difference on all 12
+elements; and `relative_to(REPO)` raised on a fixture path given relative to the cwd.
+
 
 ## Dead ends - do not repeat these
 

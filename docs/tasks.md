@@ -25,8 +25,16 @@ The live board. Every PR updates this file.
 
 - [ ] **T4 - The tree walk** (`ax/walk.rs`) - bounded DFS, seeding windows explicitly (R3),
   applying the addressability rule (R1), returning an `ElementTable`.
-- [ ] **T5 - The parity harness** - run the Python reference and the Rust port on the same
-  app, diff the tables. This is what makes the port verifiable (R8).
+- [ ] **T5 - The parity harness** - `scripts/parity`, and the specification is now pinned.
+  - **Done:** the spec is pinned and vendored (`reference/PINNED.json`, `reference/vendor/ax.py`,
+    byte-identical, hash-checked before every run), three modes exist (`--capture`, `--check`,
+    `--live`), and three fixtures are committed. `--check` passes against a real capture: the
+    reference observed Finder minutes apart and produced an identical table, fingerprint included.
+  - **Remaining:** `--live` cannot run until T7's CLI exists; it says so and exits 2. Once T4 and
+    T7 land, `--live` is the acceptance test for the walk (R8).
+  - **Found while building it:** the reference's `elements_seen` is exactly double the real node
+    count (`ax.py:272-273`), so the harness asserts `ref.elements_seen == 2 x port` rather than
+    equality. See D19.
 - [ ] **T6 - Execution** (`ax/execute.rs`) - `AXPress`, `AXValue` write, keystroke fallback
   (R4). Tested on a real button.
 - [ ] **T7 - `jev-use-rs` CLI** - `--apps`, `--table --app <App>`, matching the existing
