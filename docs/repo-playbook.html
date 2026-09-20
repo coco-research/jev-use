@@ -4,13 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Repo Standard — standing instructions for agents</title>
+<!--
+  THIS DOCUMENT IS THE SOURCE OF TRUTH FOR THE STANDARD.
+
+  It drifts unless something notices. So it carries the list of checks it documents,
+  and scripts/repo-check fails when that list and the checks it actually runs disagree.
+  If you add or rename a check, update this file and the meta tag below in the same commit.
+
+  Revision 2 - 2026-09-20. See section 7 for what changed and why.
+-->
+<meta name="repo-standard-revision" content="2">
+<meta name="repo-standard-date" content="2026-09-20">
+<meta name="repo-standard-checks" content="README.md; AGENTS.md; LICENSE; .githooks/pre-push; .githooks wired; no credentials in tracked files; no machine-specific paths; CI workflow; PR template; CONTRIBUTING.md; docs/rules.md; tests; docs/prd.md; docs/architecture.md; docs/design.md; docs/tasks.md; docs/memory.md; .metagpt/STATE.md; .metagpt/GATE.json; the six documents are not stubs">
 <style>
 :root{
   --blue:#0A6CFF; --blue-deep:#0550C8; --soft:#E8F1FF;
   --ink:#0B0F1A; --mut:#5B6B85; --ok:#12A150; --bad:#C2410C; --warn:#B45309;
   --line:rgba(11,15,26,.09); --glass:rgba(255,255,255,.72); --r:22px;
 }
-*{box-sizing:border-box}
+@media (prefers-color-scheme: dark){
+  :root{ --ink:#EEF3FF; --mut:#9FB0CC; --soft:#12203A; --glass:rgba(18,24,38,.74);
+         --line:rgba(120,170,255,.22); --blue:#5AA2FF; --blue-deep:#7AB4FF; }
+  body{ background:#0B1220; background-image:
+    radial-gradient(1100px 520px at 6% -12%,#16233C 0,rgba(22,35,60,0) 62%),
+    radial-gradient(900px 460px at 98% 2%,#101B30 0,rgba(16,27,48,0) 58%); }
+  .card.hi{ background:linear-gradient(180deg,rgba(18,32,58,.7) 0,var(--glass) 150px) }
+  code{ background:rgba(10,108,255,.16) }
+}
+*{box-sizing:border-box; min-width:0}
 body{
   margin:0;padding:clamp(14px,3.5vw,46px);
   font:400 clamp(15px,1.05vw,16.5px)/1.62 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
@@ -26,6 +47,7 @@ header{display:grid;gap:10px}
 h1{margin:0;font-size:clamp(25px,4.8vw,40px);line-height:1.08;letter-spacing:-.03em;font-weight:680}
 h1 em{font-style:normal;color:var(--blue)}
 .lede{margin:0;font-size:clamp(15px,1.6vw,18.5px);color:#26314A;max-width:68ch}
+@media (prefers-color-scheme: dark){ .lede{ color:#C7D6F0 } }
 .card{
   background:var(--glass);backdrop-filter:blur(24px) saturate(180%);
   -webkit-backdrop-filter:blur(24px) saturate(180%);
@@ -33,445 +55,330 @@ h1 em{font-style:normal;color:var(--blue)}
   padding:clamp(15px,2.4vw,26px);box-shadow:0 10px 34px rgba(11,15,26,.055)
 }
 .card.hi{border-color:rgba(10,108,255,.24);background:linear-gradient(180deg,rgba(232,241,255,.6) 0,var(--glass) 150px)}
-h2{margin:0 0 4px;font-size:clamp(17px,2.2vw,22px);letter-spacing:-.02em;font-weight:660}
-h2 .n{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;
-  margin-right:.5em;border-radius:9px;background:var(--blue);color:#fff;font-size:.72em;font-weight:700;vertical-align:.08em}
+h2{margin:0 0 4px;font-size:clamp(17px,2.2vw,22px);letter-spacing:-.02em;font-weight:660;
+   display:flex;align-items:center;gap:.5em;flex-wrap:wrap}
+h2 .n{display:inline-flex;align-items:center;justify-content:center;min-width:1.55em;height:1.55em;
+  padding:0 .35em;border-radius:9px;background:var(--blue);color:#fff;font-size:.7em;font-weight:700}
 h3{margin:20px 0 6px;font-size:clamp(15px,1.7vw,17px);font-weight:660;letter-spacing:-.01em}
 .sub{margin:0 0 14px;color:var(--mut);font-size:clamp(13.5px,1.5vw,15px);max-width:74ch}
-code,.mono{font:500 .87em/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
-code{background:#EDF2FA;color:#1B4DA8;padding:2px 7px;border-radius:7px;word-break:break-word}
-pre{margin:10px 0 0;padding:14px 16px;border-radius:14px;overflow-x:auto;max-width:100%;
-  background:#0C1220;color:#DCE7F7;font:500 12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}
-pre .c{color:#7C8CA8} pre .g{color:#7BE0A8} pre .b{color:#7FB6FF} pre .y{color:#FFD479} pre .r{color:#FF9E80}
-.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px;min-width:0}
-table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
-th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);
-  font-weight:680;padding:0 12px 9px 0;border-bottom:1px solid var(--line);white-space:nowrap}
-td{padding:11px 12px 11px 0;border-bottom:1px solid var(--line);vertical-align:top}
-tr:last-child td{border-bottom:0}
-td:first-child{font-weight:620}
-.ok{color:var(--ok);font-weight:700} .no{color:var(--bad);font-weight:700} .mid{color:var(--warn);font-weight:700}
-.chain{display:grid;gap:0;margin-top:6px}
-.step{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;padding:13px 0;
-  border-bottom:1px dashed var(--line);min-width:0}
-.step:last-child{border-bottom:0}
-.step > *{min-width:0}
-.dot{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
-  background:var(--soft);color:var(--blue);font-weight:700;font-size:13.5px;border:1px solid rgba(10,108,255,.2)}
-.dot.req{background:var(--bad);color:#fff;border-color:var(--bad)}
-.dot.opt{background:#EEF1F6;color:var(--mut);border-color:var(--line)}
-.step .t{font-weight:620;letter-spacing:-.01em}
-.step .d{color:var(--mut);font-size:13.5px;margin-top:2px}
-ul,ol{margin:8px 0 0;padding-left:20px;font-size:14px;color:#2C3750}
-li{margin:5px 0}
-.note{font-size:13px;color:var(--mut);margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
-.note b{color:#26314A}
-.callout{border-radius:16px;padding:14px 16px;font-size:14px;color:#2C3750;margin-top:12px;
-  border:1px solid rgba(194,65,12,.24);background:linear-gradient(180deg,#FEF6F2,#fff)}
-.callout b{color:#8A2E10}
-.callout.blue{border-color:rgba(10,108,255,.28);background:linear-gradient(180deg,#F3F8FF,#fff)}
-.callout.blue b{color:#0550C8}
-.callout.green{border-color:rgba(18,161,80,.28);background:linear-gradient(180deg,#F1FBF5,#fff)}
-.callout.green b{color:#0B6E36}
-.rule{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;padding:12px 0;
-  border-bottom:1px solid var(--line);min-width:0}
-.rule:last-child{border-bottom:0}
-.rule > *{min-width:0}
-.rn{font:700 15px/1 ui-monospace,Menlo,monospace;color:var(--blue);padding-top:3px}
-.rule .t{font-weight:640}
-.rule .why{color:var(--mut);font-size:13.5px;margin-top:3px}
-details{margin-top:10px;border:1px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
-details[open]{background:#fff}
-summary{cursor:pointer;padding:12px 16px;font-weight:640;font-size:14px;list-style:none;
-  display:flex;align-items:center;gap:9px}
-summary::-webkit-details-marker{display:none}
-summary::before{content:"›";font-size:19px;color:var(--blue);transition:transform .15s;font-weight:700}
-details[open] summary::before{transform:rotate(90deg)}
-details .body{padding:0 16px 16px;border-top:1px solid var(--line);margin-top:0}
-@media (max-width:560px){.step,.rule{grid-template-columns:1fr;gap:8px}}
+p{margin:0 0 10px} li{margin:5px 0} ul,ol{margin:6px 0 12px;padding-left:22px}
+li{color:#26314A} @media (prefers-color-scheme: dark){ li{color:#C7D6F0} }
+code{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-size:.9em;
+     background:var(--soft);color:var(--blue-deep);padding:2px 6px;border-radius:6px;overflow-wrap:anywhere}
+.mono{font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,monospace;font-size:.88em;overflow-wrap:anywhere}
+.rule{display:grid;grid-template-columns:auto 1fr;gap:0 14px;padding:13px 0;border-top:1px solid var(--line)}
+.rule:first-of-type{border-top:0}
+.rule .num{font:700 13px/1.5 ui-monospace,Menlo,monospace;color:var(--blue);
+  background:var(--soft);border-radius:8px;padding:3px 8px;align-self:start}
+.rule b{display:block;margin-bottom:2px;font-weight:660}
+.rule .why{color:var(--mut);font-size:14.5px}
+.tag{display:inline-block;font:600 11.5px/1.5 ui-monospace,Menlo,monospace;padding:2px 8px;border-radius:999px;
+     border:1px solid var(--line);background:var(--soft);color:var(--blue-deep);white-space:nowrap}
+.tag.ok{background:rgba(18,161,80,.12);color:var(--ok);border-color:rgba(18,161,80,.25)}
+.tag.bad{background:rgba(194,65,12,.12);color:var(--bad);border-color:rgba(194,65,12,.25)}
+.tag.warn{background:rgba(180,83,9,.12);color:var(--warn);border-color:rgba(180,83,9,.25)}
+table{width:100%;border-collapse:collapse;font-size:14.8px}
+th,td{text-align:left;padding:9px 10px;border-top:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
+tr:first-child th{border-top:0}
+.scroll{overflow-x:auto}
+.alert{border-left:3px solid var(--blue);padding:2px 0 2px 14px;margin:12px 0}
+.alert.warn{border-left-color:var(--warn)}
+.alert.bad{border-left-color:var(--bad)}
+footer{color:var(--mut);font-size:13.5px;text-align:center;padding:6px 0 16px}
 </style>
 </head>
 <body>
 <div class="wrap">
 
 <header>
-  <h1>The Repo Standard.<br><em>Standing instructions.</em></h1>
-  <p class="lede">Every repository you own carries the same skeleton, the same gate, and the same six documents. This is the instruction set. An agent reads this once and can bring any repo into compliance without asking.</p>
+  <h1>The Repo <em>Standard</em></h1>
+  <p class="lede">Every repository you own carries the same skeleton, the same gate and the same
+  six documents. This is the instruction set: an agent reads it once and can bring any repo into
+  compliance without asking.</p>
+  <p class="sub">
+    <b>Revision 2 — 2026-09-20.</b>
+    Checked by <code>scripts/repo-check</code>, which is the tool, not a description of one.
+    This file lists the checks it runs; the tool fails when that list and reality disagree,
+    so the document cannot rot quietly. Section 7 has the change log.
+  </p>
 </header>
 
+<!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="card hi">
   <h2><span class="n">0</span>How to use this document</h2>
   <p class="sub">Read this section before the rest. It tells you what to do, in order.</p>
   <ol>
-    <li><b>Run the audit first.</b> <code>repo-check --repo &lt;path&gt;</code> reports exactly what is missing. Do not guess.</li>
-    <li><b>Fix tier 1 before anything else.</b> Tier 1 is mandatory for every repo, no exceptions, no judgement calls.</li>
-    <li><b>Copy, do not invent.</b> Every file in tier 1 has a template in this document. Use it verbatim, then adjust the content.</li>
-    <li><b>Re-run the audit.</b> It must say <code>COMPLIANT</code> before you consider the job done.</li>
-    <li><b>Never delete a document to make the audit pass.</b> An empty placeholder is worse than a missing file, and the audit treats both as failures. That is deliberate.</li>
+    <li><b>Audit first.</b> <code>repo-check --repo &lt;path&gt;</code> reports exactly what is
+      missing. Do not guess, and do not work from memory of this page.</li>
+    <li><b>Fix tier 1 before anything else.</b> Tier 1 is mandatory for every repo: no
+      exceptions, no judgement calls.</li>
+    <li><b>Copy, do not invent.</b> Every tier-1 file has a working example in a repo that is
+      already compliant. Start there and adjust the content.</li>
+    <li><b>Re-run the audit.</b> It must say <span class="tag ok">COMPLIANT</span> before the
+      job is done — not "mostly", not "except for".</li>
+    <li><b>Never delete a document to make the audit pass.</b> A stub is treated as a failure
+      on purpose: an empty placeholder is worse than a missing file.</li>
   </ol>
-  <div class="callout blue">
-    <b>The one rule under all the others:</b> a document that lies is worse than no document, because the next agent will act on it. If a change makes a document wrong, fix the document in the same commit.
+  <div class="alert">
+    <p><b>The one rule under all the others:</b> a document that lies is worse than no document,
+    because the next agent will act on it. If a change makes a document wrong, fix the document
+    in the same commit — including this one.</p>
   </div>
 </div>
 
+<!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="card">
-  <h2><span class="n">1</span>The ten standing rules</h2>
-  <p class="sub">These are not stylistic. Each one exists because its absence caused a specific, observed failure.</p>
+  <h2><span class="n">1</span>The twelve standing rules</h2>
+  <p class="sub">Not stylistic. Each exists because its absence caused a specific, observed failure.</p>
 
-  <div class="rule"><div class="rn">01</div><div>
-    <div class="t">Every repo has an <code>AGENTS.md</code> at root, under 160 lines.</div>
-    <div class="why">It is the one file an agent reads first. Not rules — a map: where the documents are, which one wins when they disagree, what to read first. Five of seven repos were missing it, so every agent started from zero.</div>
-  </div></div>
+  <div class="rule"><span class="num">01</span><div>
+    <b>Every repo has an <code>AGENTS.md</code> at root, under 160 lines.</b>
+    <span class="why">It is the one file an agent reads first. Not rules — a map: where the
+    documents are, which one wins when they disagree, what to read first. Five of seven repos
+    were missing it, so every agent started from zero.</span></div></div>
 
-  <div class="rule"><div class="rn">02</div><div>
-    <div class="t">Work lands through a small PR. Nothing is pushed straight to <code>main</code>.</div>
-    <div class="why">A PR is where a change becomes explainable. A commit on main is where it becomes anonymous.</div>
-  </div></div>
+  <div class="rule"><span class="num">02</span><div>
+    <b>Work lands through a small PR. Nothing is pushed straight to <code>main</code>.</b>
+    <span class="why">A PR is where a change becomes explainable. A commit on main is where it
+    becomes anonymous.</span></div></div>
 
-  <div class="rule"><div class="rn">03</div><div>
-    <div class="t">A gate runs before every push, and it is local.</div>
-    <div class="why">CI can be refused (a private repo on an exhausted budget was, outright), and a hosted runner cannot test anything that needs a GUI session. The hook cannot be refused and takes 1.5 seconds.</div>
-  </div></div>
+  <div class="rule"><span class="num">03</span><div>
+    <b>A gate runs before every push, and it is local.</b>
+    <span class="why">CI can be refused — a private repo on an exhausted budget was, outright —
+    and a hosted runner cannot test anything that needs a GUI session. The hook cannot be
+    refused. It must also be <i>fast</i>: a gate that costs twelve seconds is a gate that gets
+    <code>--no-verify</code> within a day, and a bypassed gate protects nothing.</span></div></div>
 
-  <div class="rule"><div class="rn">04</div><div>
-    <div class="t">Evidence, never assertion, in the PR body.</div>
-    <div class="why">"Tests pass" is a claim. The command and its real output is a fact. Every PR template section exists to force the second.</div>
-  </div></div>
+  <div class="rule"><span class="num">04</span><div>
+    <b>Evidence, never assertion, in the PR body.</b>
+    <span class="why">"Tests pass" is a claim. The command and its real output is a fact. Every
+    section of the PR template exists to force the second.</span></div></div>
 
-  <div class="rule"><div class="rn">05</div><div>
-    <div class="t">One owner per fact.</div>
-    <div class="why">Two documents must never both be authoritative for the same thing. Two sources of truth is a bug that reads as documentation.</div>
-  </div></div>
+  <div class="rule"><span class="num">05</span><div>
+    <b>One owner per fact.</b>
+    <span class="why">Two documents must never both be authoritative for the same thing. Two
+    sources of truth is a bug that reads as documentation.</span></div></div>
 
-  <div class="rule"><div class="rn">06</div><div>
-    <div class="t">An invariant is written with the measurement behind it.</div>
-    <div class="why">"Set the messaging timeout" is an opinion and gets removed. "Without this timeout the call hangs rather than fails; measured on PI-Desktop returning CannotComplete" is a fact and survives review.</div>
-  </div></div>
+  <div class="rule"><span class="num">06</span><div>
+    <b>An invariant is written with the measurement behind it.</b>
+    <span class="why">"Set the messaging timeout" is an opinion and gets removed. "Without this
+    timeout the call hangs rather than fails; measured on PI-Desktop returning
+    <span class="mono">CannotComplete</span>" is a fact and survives review.</span></div></div>
 
-  <div class="rule"><div class="rn">07</div><div>
-    <div class="t">Dead ends are recorded, not deleted.</div>
-    <div class="why">The cheapest and most-skipped thing in any repo. One sentence — "we tried X, it failed because Y" — saves the next agent the hour you already spent.</div>
-  </div></div>
+  <div class="rule"><span class="num">07</span><div>
+    <b>Dead ends are recorded, not deleted.</b>
+    <span class="why">The cheapest and most-skipped thing in any repo. One sentence — "we tried
+    X, it failed because Y" — saves the next agent the hour you already spent. The <i>wrong</i>
+    diagnoses are worth more than the right one: they are the ones someone will have again.</span></div></div>
 
-  <div class="rule"><div class="rn">08</div><div>
-    <div class="t">No credential reaches a tracked file, a log, or a commit message.</div>
-    <div class="why">Read secrets by path at runtime. Never copy one in. If one lands, remove it <b>and rotate it</b> — assume it is already public.</div>
-  </div></div>
+  <div class="rule"><span class="num">08</span><div>
+    <b>No credential reaches a tracked file, a log, a response body or a commit message.</b>
+    <span class="why">Read secrets by path at runtime; never copy one in, not even to debug. If
+    one lands: remove it, <b>rotate it</b>, and say so — assume it is already public. Fake
+    fixtures must be obviously fake (<span class="mono">sk-test-…</span>).</span></div></div>
 
-  <div class="rule"><div class="rn">09</div><div>
-    <div class="t">A public repo carries a LICENSE. No licence means legally untouchable.</div>
-    <div class="why">Without one, the default is all rights reserved: nobody may legally use or contribute to the code, no matter how public it looks.</div>
-  </div></div>
+  <div class="rule"><span class="num">09</span><div>
+    <b>A public repo asks for the reader's keys, never carries ours.</b>
+    <span class="why">Anything published ships with no provider list, no wallet topology and no
+    absolute home path. It must behave like a fresh install and ask, rather than quietly running
+    on the author's credentials. Absolute machine paths in shipped code are the same mistake in
+    a different costume.</span></div></div>
 
-  <div class="rule"><div class="rn">10</div><div>
-    <div class="t">A tool that cries wolf gets ignored, and then protects nothing.</div>
-    <div class="why">Two false positives were removed from the audit before it shipped: a PEM header inside a test that verifies keys are <i>withheld</i>, and a placeholder token literally named <code>not-production</code>. A check that fails on correct code teaches you to skip the output.</div>
-  </div></div>
+  <div class="rule"><span class="num">10</span><div>
+    <b>One checkout per repository.</b>
+    <span class="why">Two working copies of one repo is how two agents end up editing different
+    versions of the same file, and this machine has the scars. If a second copy exists, that is
+    a bug — say so and delete it. A mirror that must exist (a products folder, a runner's work
+    directory) is a clone with an origin, not a hand copy.</span></div></div>
+
+  <div class="rule"><span class="num">11</span><div>
+    <b>Documents and the machine-readable gate must agree.</b>
+    <span class="why">Three documents called themselves "draft, awaiting approval" while
+    <code>GATE.json</code> recorded them approved. Both were readable; only one was true. When
+    they disagree, fix the disagreement in the same commit — and prefer the state file as the
+    record of approval, because that is the one the workflow reads.</span></div></div>
+
+  <div class="rule"><span class="num">12</span><div>
+    <b>A doc that nothing checks is a doc that rots.</b>
+    <span class="why">This page was three weeks stale and nothing noticed, because
+    <code>repo-check</code> examined the six Markdown documents and no HTML. So this file
+    declares the checks it documents, and the tool fails when the two lists differ. If you add
+    a check, you update this page in the same commit.</span></div></div>
 </div>
 
+<!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="card">
-  <h2><span class="n">2</span>What every repo carries</h2>
-  <p class="sub">Three tiers. Only tier 1 is mandatory. The structure is identical across repos on purpose: an agent that knows one repo knows all of them.</p>
-
-  <pre>repo/
-├── README.md                <span class="c">what it is, how to run it. 60 lines max.</span>
-├── <span class="b">AGENTS.md</span>                  <span class="c">TIER 1. the routing table. under 160 lines.</span>
-├── CONTRIBUTING.md          <span class="c">the loop, branch naming, PR size, cadences.</span>
-├── LICENSE                  <span class="c">TIER 1. required the moment a repo is public.</span>
-├── .<span class="b">githooks/pre-push</span>         <span class="c">TIER 1. the gate. committed, not in .git/hooks.</span>
-├── .github/
-│   ├── workflows/ci.yml     <span class="c">backstop for anyone who skipped the hook.</span>
-│   └── <span class="b">pull_request_template.md</span>  <span class="c">TIER 1. forces evidence over assertion.</span>
-├── docs/
-│   ├── prd.md               <span class="c">what and why</span>
-│   ├── architecture.md      <span class="c">how the parts fit</span>
-│   ├── <span class="b">rules.md</span>               <span class="c">the laws, each with its measurement</span>
-│   ├── design.md            <span class="c">what it looks like</span>
-│   ├── tasks.md             <span class="c">the live board</span>
-│   └── <span class="b">memory.md</span>              <span class="c">decisions and dead ends</span>
-├── .metagpt/
-│   ├── STATE.md             <span class="c">starts with "Next action:". one glance.</span>
-│   ├── GATE.json            <span class="c">machine-readable gate state</span>
-│   └── interview.md         <span class="c">what was asked and answered, before design</span>
-└── src/ or crates/</pre>
-
-  <div class="note"><b>Why <code>.githooks/</code> and not <code>.git/hooks/</code>:</b> the latter is never committed. It exists on one machine and dies with the clone. Commit the hooks, then <code>git config core.hooksPath .githooks</code> once per clone.</div>
-</div>
-
-<div class="card">
-  <h2><span class="n">3</span>Tier 1 — mandatory. Copy these.</h2>
-  <p class="sub">Every block below is a working file, not an illustration. The versions in <code>coco-research/jev-use</code> are the reference; these are the same, trimmed.</p>
-
-  <details>
-    <summary>AGENTS.md — the routing table</summary>
-    <div class="body">
-      <p class="sub" style="margin-top:12px">The one file an agent reads first. Keep it under 160 lines. It is a map, not an essay — detail belongs in <code>docs/</code>.</p>
-      <pre><span class="c"># AGENTS.md — read this before touching anything</span>
-
-<span class="c">## 0. The documents, and when each is authoritative</span>
-
-| File | Answers | Update when |
-| --- | --- | --- |
-| `docs/prd.md` | What and why | Scope changes |
-| `docs/architecture.md` | How the parts fit | Structure changes |
-| `docs/rules.md` | The laws. Invariants | <span class="y">ONLY with owner approval</span> |
-| `docs/design.md` | What it looks and feels like | UI work |
-| `docs/tasks.md` | What is worked on now | <span class="y">Every PR</span> |
-| `docs/memory.md` | Decisions and dead ends | <span class="y">Every PR that settles something</span> |
-
-If two documents disagree, the earlier one in that table wins. Never
-silently pick one — fix the disagreement in the same PR.
-
-<span class="c">## 1. The PR contract</span>
-
-- Every change is a <span class="b">small PR</span>. No direct pushes to `main`.
-- <span class="b">Gate green before review.</span> Run `.githooks/pre-push` or `git push` and let it.
-- <span class="b">Evidence, not assertions.</span> Paste the command and its real output.
-- One concern per PR. Two things touched means two PRs.
-- Fill the PR template in honestly, including the Risk section.
-
-<span class="c">## 2. Never commit</span>
-
-- Any API key, token, or secret. Not in code, not in docs, not in a fixture.
-- Absolute personal paths in shipped code. Docs may name one as an example.
-- Build output. `target/`, `dist/`, `node_modules/` are ignored and stay ignored.
-
-<span class="c">## 3. When unsure</span>
-
-`docs/rules.md` holds the invariants, each with the measurement that justifies it.
-If a task appears to require breaking one, <span class="b">stop and ask</span>.
-
-<span class="c">## 4. Recording what you learned</span>
-
-`docs/memory.md` is not a diary. It records <span class="b">decisions with reasons</span> and
-<span class="b">dead ends worth not repeating</span>. If you spent an hour proving a
-hypothesis wrong, that sentence saves the next agent the hour.</pre>
-    </div>
-  </details>
-
-  <details>
-    <summary>.githooks/pre-push — the gate</summary>
-    <div class="body">
-      <p class="sub" style="margin-top:12px">Adapt the middle to the stack. The shape does not change: fast checks first, secrets last, refuse loudly.</p>
-      <pre><span class="c">#!/usr/bin/env bash</span>
-<span class="c"># The gate. CI is a backstop; this is what actually holds.</span>
-<span class="c"># Install once per clone:  git config core.hooksPath .githooks</span>
-<span class="c"># Bypass only in a real emergency:  git push --no-verify  (and say why in the PR)</span>
-
-set -uo pipefail
-
-fail() { printf '\n<span class="r">GATE BLOCKED</span>  %s\n' "$1" &gt;&amp;2; exit 1; }
-step() { printf '<span class="c">  ...</span> %s\n' "$1"; }
-ok()   { printf '<span class="g">  ok</span>  %s\n' "$1"; }
-
-<span class="c"># 1. Formatting — cheapest, so it runs first</span>
-step "format check"
-cargo fmt --all -- --check &gt;/dev/null 2&gt;&amp;1 || fail "run: cargo fmt --all"
-ok "fmt"
-
-<span class="c"># 2. Lints, with the same flags CI uses</span>
-step "lint"
-out=$(cargo clippy --workspace --all-targets -- -D warnings 2&gt;&amp;1) || {
-  printf '%s\n' "$out" | tail -30 &gt;&amp;2; fail "clippy found problems"; }
-ok "clippy"
-
-<span class="c"># 3. Tests</span>
-step "test"
-out=$(cargo test --workspace 2&gt;&amp;1) || {
-  printf '%s\n' "$out" | tail -40 &gt;&amp;2; fail "tests failed"; }
-n=$(printf '%s\n' "$out" | grep -oE '[0-9]+ passed' | awk '{s+=$1} END {print s+0}')
-ok "test (${n} passed)"
-
-<span class="c"># 4. Refuse a credential before it reaches the remote</span>
-step "credential scan"
-pats='sk-[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|gcli_[A-Za-z0-9]{10,}'
-hits=$(git diff --cached -U0 --diff-filter=ACMR | grep -E '^\+' | grep -Eo "$pats" | head -5 || true)
-[ -n "$hits" ] &amp;&amp; { printf '%s\n' "$hits" &gt;&amp;2; fail "a credential is staged"; }
-ok "no credentials staged"
-
-printf '\n<span class="g">GATE PASSED</span>\n'</pre>
-      <div class="callout"><b>Python, JS, Go:</b> swap steps 1-3 for the local equivalents (<code>ruff format --check</code> + <code>ruff check</code> + <code>pytest</code>, or <code>prettier --check</code> + <code>eslint</code> + <code>npm test</code>). Keep the order. Keep the credential scan last.</div>
-    </div>
-  </details>
-
-  <details>
-    <summary>.github/pull_request_template.md</summary>
-    <div class="body">
-      <pre><span class="c">&lt;!-- Keep this short. A PR nobody can review in two minutes is not a small PR. --&gt;</span>
-
-<span class="c">## What this changes</span>
-
-<span class="c">&lt;!-- One or two sentences. What behaves differently after this merges? --&gt;</span>
-
-<span class="c">## Why</span>
-
-<span class="c">&lt;!-- The problem. Link the task in docs/tasks.md. --&gt;</span>
-
-<span class="c">## How it was verified</span>
-
-<span class="c">&lt;!-- Paste the real command and its real output. Not a summary of it. --&gt;</span>
-
-```
-$ cargo test --workspace
-```
-
-<span class="c">## Checklist</span>
-
-- [ ] Gate is green (`git push` ran the hook)
-- [ ] `docs/tasks.md` updated if this closes or opens a task
-- [ ] `docs/memory.md` updated if this settled a decision or a dead end
-- [ ] No secret, key, or personal path added to any file, including docs
-- [ ] If a <span class="b">documented invariant</span> changed, `docs/rules.md` is updated here too
-
-<span class="c">## Risk</span>
-
-<span class="c">&lt;!-- What could this break, and what is the rollback? --&gt;</span></pre>
-    </div>
-  </details>
-
-  <details>
-    <summary>docs/rules.md — the invariants</summary>
-    <div class="body">
-      <p class="sub" style="margin-top:12px">The highest-value file in any repo, and the one nobody writes. Each rule carries <b>the measurement that justifies it</b>, or it is just an opinion and will be removed by the next person who finds it inconvenient.</p>
-      <pre><span class="c"># Rules</span>
-
-<span class="b">The invariants. These do not change without the owner's explicit approval.</span>
-
-Every rule here has a <span class="b">measurement</span> behind it. They are not stylistic
-preferences; each exists because breaking it caused a real, observed failure.
-
-Any PR that changes a rule in this file must say so in its title.
-
-<span class="c">---</span>
-
-<span class="c">## R1 — &lt;the rule, as an instruction&gt;</span>
-
-<span class="b">Enforced by:</span> &lt;the code that makes it true&gt;
-
-<span class="b">Measured:</span> &lt;the number, and how it was obtained&gt;
-
-<span class="b">Why it matters:</span> &lt;what breaks when this is violated, in concrete terms&gt;
-
-<span class="c">---</span>
-
-<span class="c">## R2 — ...</span></pre>
-      <div class="callout blue"><b>Worked example from a real repo:</b> <i>R2 — the messaging timeout is mandatory, and it is set before the walk. Enforced by <code>Limits::messaging_timeout_secs</code>, default 2.0. Measured: you cannot cancel a blocked AX attribute read. Why it matters: that timeout is the only thing stopping one unresponsive app from pinning a worker forever. Observed: PI-Desktop reproducibly returns CannotComplete on every attribute while other apps answer normally. Without the timeout the call does not fail — it hangs.</i> <br><br>That survives review because you cannot argue with it.</div>
-    </div>
-  </details>
-</div>
-
-<div class="card">
-  <h2><span class="n">4</span>The four cadences</h2>
-  <p class="sub">Four different memory lengths. Skipping a short one is cheap. Skipping a long one is how a repo rots.</p>
-  <div class="chain">
-    <div class="step"><div class="dot">1</div><div>
-      <div class="t">Every commit — 0 s, automated</div>
-      <div class="d">The gate. If it is not automated it will be skipped. <b>1.5 seconds warm</b> is the budget; if yours is slower, fix that before adding checks.</div>
-    </div></div>
-    <div class="step"><div class="dot">2</div><div>
-      <div class="t">Every PR — 60 s, by hand</div>
-      <div class="d">Update <code>tasks.md</code>. Update <code>memory.md</code> if a decision was made or a dead end hit. That is the entire difference between a PR and a commit on main.</div>
-    </div></div>
-    <div class="step"><div class="dot">3</div><div>
-      <div class="t">Weekly — 5 min, in tasks.md only</div>
-      <div class="d">Move done to Done with the PR number. Re-rank. <b>Delete anything that has been "next" for three weeks.</b> That last one matters more than the others.</div>
-    </div></div>
-    <div class="step"><div class="dot">4</div><div>
-      <div class="t">Monthly — 20 min, read the rules against the code</div>
-      <div class="d">Is every invariant in <code>rules.md</code> still enforced by a test? Prune <code>memory.md</code> of anything now obvious. Check <code>architecture.md</code> still describes the real tree.</div>
-    </div></div>
-  </div>
-</div>
-
-<div class="card hi">
-  <h2><span class="n">5</span>How to verify — <code>repo-check</code></h2>
-  <p class="sub">A standard nobody can verify is a suggestion. This is the mechanical audit, and it is what an agent should run before claiming a repo is compliant.</p>
-  <pre><span class="c"># audit the repo you are standing in</span>
-repo-check
-
-<span class="c"># audit another</span>
-repo-check --repo ~/code/thing
-
-<span class="c"># machine-readable, for CI or an agent to parse</span>
-repo-check --json
-
-<span class="c"># only the mandatory tier</span>
-repo-check --tier 1
-
-<span class="c">exit 0 = compliant. exit 1 = gaps. exit 2 = the check itself broke.</span></pre>
-
-  <h3>What it checks</h3>
-  <div class="tw">
+  <h2><span class="n">2</span>What the checker actually verifies</h2>
+  <p class="sub">Nineteen checks in three tiers, run by <code>scripts/repo-check</code>. The
+  list below is the contract; the meta tag at the top of this file is compared against it.</p>
+  <div class="scroll">
     <table>
-      <thead><tr><th>Tier</th><th>Checks</th><th>Fails the audit?</th></tr></thead>
-      <tbody>
-        <tr><td><span class="no">1 REQUIRED</span></td><td>README, AGENTS.md (and its length), LICENSE, <code>.githooks/pre-push</code>, <code>core.hooksPath</code> wired, no credentials in product code</td><td class="no">Yes</td></tr>
-        <tr><td><span class="mid">2 EXPECTED</span></td><td>CI workflow, PR template, CONTRIBUTING, <code>docs/rules.md</code>, tests, machine-specific paths flagged</td><td>No — reported</td></tr>
-        <tr><td><span class="mut">3 DOCUMENTS</span></td><td>The six docs plus <code>.metagpt/STATE.md</code> and <code>GATE.json</code>, checked for stubs and placeholders</td><td>No — reported</td></tr>
-      </tbody>
+      <tr><th>Tier</th><th>Check</th><th>What it means</th></tr>
+      <tr><td><span class="tag bad">1 required</span></td><td><code>README.md</code></td><td>Present, and not a stub. It is the front door.</td></tr>
+      <tr><td><span class="tag bad">1 required</span></td><td><code>AGENTS.md</code></td><td>Present, under 160 lines, no placeholders. The map an agent reads first.</td></tr>
+      <tr><td><span class="tag bad">1 required</span></td><td><code>LICENSE</code></td><td>Without one, nobody may legally use or contribute.</td></tr>
+      <tr><td><span class="tag bad">1 required</span></td><td><code>.githooks/pre-push</code></td><td>Present and executable.</td></tr>
+      <tr><td><span class="tag bad">1 required</span></td><td><code>.githooks wired</code></td><td><code>core.hooksPath</code> points at it. A hook nobody installed is decoration.</td></tr>
+      <tr><td><span class="tag bad">1 required</span></td><td>no credentials in tracked files</td><td>Scans every tracked file for key shapes.</td></tr>
+      <tr><td><span class="tag warn">2 expected</span></td><td>no machine-specific paths</td><td>No hard-coded home directories in shipped code.</td></tr>
+      <tr><td><span class="tag warn">2 expected</span></td><td>CI workflow</td><td>The backstop for anyone who clones without the hook.</td></tr>
+      <tr><td><span class="tag warn">2 expected</span></td><td>PR template</td><td>How "evidence, not assertions" becomes the default.</td></tr>
+      <tr><td><span class="tag warn">2 expected</span></td><td><code>CONTRIBUTING.md</code></td><td>The loop, branch naming, PR size.</td></tr>
+      <tr><td><span class="tag warn">2 expected</span></td><td><code>docs/rules.md</code></td><td>The invariants, each with the measurement behind it.</td></tr>
+      <tr><td><span class="tag warn">2 expected</span></td><td>tests</td><td>Something that runs and can fail.</td></tr>
+      <tr><td><span class="tag">3 documents</span></td><td><code>docs/prd.md</code></td><td>What and why.</td></tr>
+      <tr><td><span class="tag">3 documents</span></td><td><code>docs/architecture.md</code></td><td>How the parts fit.</td></tr>
+      <tr><td><span class="tag">3 documents</span></td><td><code>docs/design.md</code></td><td>What it looks like and feels like.</td></tr>
+      <tr><td><span class="tag">3 documents</span></td><td><code>docs/tasks.md</code></td><td>What is in flight.</td></tr>
+      <tr><td><span class="tag">3 documents</span></td><td><code>docs/memory.md</code></td><td>Decisions, and dead ends worth not repeating.</td></tr>
+      <tr><td><span class="tag">3 documents</span></td><td><code>.metagpt/STATE.md</code></td><td>Where we are, next action — must open with <code>Next action:</code>.</td></tr>
+      <tr><td><span class="tag">3 documents</span></td><td><code>.metagpt/GATE.json</code></td><td>Machine-readable gate state: valid JSON.</td></tr>
+      <tr><td><span class="tag">3 documents</span></td><td>the six are not stubs</td><td>Each over 200 bytes, no placeholder markers. A stub is worse than a missing file.</td></tr>
     </table>
   </div>
-
-  <div class="callout green">
-    <b>What it deliberately does not do:</b> fail you for a "TODO" in a draft, or for absolute paths in a private repo's logs. Both were in the first version and both were removed, because a check that fires on legitimate work is a check you learn to ignore.
-  </div>
 </div>
 
+<!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="card">
-  <h2><span class="n">6</span>Where you actually stand — audited</h2>
-  <p class="sub">Run against all five repos on this machine. The pattern is the same everywhere, which is exactly why this document exists.</p>
-  <div class="tw">
+  <h2><span class="n">3</span>The gate is three layers, and each one sees something the others cannot</h2>
+  <p class="sub">This is the part most often got wrong. They are not redundant.</p>
+  <div class="scroll">
     <table>
-      <thead><tr><th>Repo</th><th>AGENTS.md</th><th>pre-push</th><th>PR template</th><th>docs/rules.md</th><th>Credentials</th><th>Tier 1</th></tr></thead>
-      <tbody>
-        <tr><td>jev-use</td><td class="ok">pass</td><td class="ok">pass</td><td class="ok">pass</td><td class="ok">pass</td><td class="ok">clean</td><td class="ok">COMPLIANT</td></tr>
-        <tr><td>coco</td><td class="no">missing</td><td class="no">missing</td><td class="no">missing</td><td class="no">missing</td><td class="ok">clean</td><td class="no">3 gaps</td></tr>
-        <tr><td>coco-hermes</td><td class="ok">pass</td><td class="no">missing</td><td class="no">missing</td><td class="no">missing</td><td class="ok">clean</td><td class="no">3 gaps</td></tr>
-        <tr><td>coco-connect</td><td class="no">missing</td><td class="no">missing</td><td class="no">missing</td><td class="no">missing</td><td class="ok">clean</td><td class="no">3 gaps</td></tr>
-        <tr><td>coco-m0</td><td class="no">missing</td><td class="no">missing</td><td class="no">missing</td><td class="no">missing</td><td class="ok">clean</td><td class="no">3 gaps</td></tr>
-      </tbody>
+      <tr><th>Layer</th><th>Scans</th><th>Catches</th><th>Cannot catch</th></tr>
+      <tr>
+        <td><b>pre-push hook</b><br><span class="sub">fast, local</span></td>
+        <td>the <b>staged diff</b></td>
+        <td>a key as it is being typed; broken tests; formatting</td>
+        <td>anything already committed three commits ago</td>
+      </tr>
+      <tr>
+        <td><b><code>repo-check</code></b><br><span class="sub">in the hook, and by hand</span></td>
+        <td><b>tracked files</b></td>
+        <td>a credential already in history; missing documents; a stale SoT</td>
+        <td>what is not committed yet</td>
+      </tr>
+      <tr>
+        <td><b>CI</b><br><span class="sub">the backstop</span></td>
+        <td>a clean checkout</td>
+        <td>what a fresh clone breaks on — including a machine the author never used</td>
+        <td>anything needing a GUI session, unless a self-hosted runner exists</td>
+      </tr>
     </table>
   </div>
-  <div class="note"><b>Good news buried in that table:</b> <b>zero credentials in product code across every repo</b>, over 5,500 files scanned. Whatever you are doing with secrets, it is working. The gaps are all missing skeletons, not leaks.</div>
-  <div class="note"><b>The repeat offenders, in order of value:</b> <code>docs/rules.md</code> (0 of 5 repos have it — the highest-value file and the universal omission), <code>.githooks/pre-push</code> (0 of 5), PR template (0 of 5), <code>AGENTS.md</code> (1 of 5).</div>
-</div>
-
-<div class="card">
-  <h2><span class="n">7</span>Applying it — the exact sequence</h2>
-  <p class="sub">Cheapest first. Do not do all of this in one afternoon; documents written as an exercise are stale within a week.</p>
-  <div class="chain">
-    <div class="step"><div class="dot req">1</div><div>
-      <div class="t">Wire the gate in every repo</div>
-      <div class="d">Copy <code>.githooks/pre-push</code>, run <code>chmod +x</code>, then <code>git config core.hooksPath .githooks</code>. One file, one command, per repo. This is tier 1 and it takes two minutes each.</div>
-    </div></div>
-    <div class="step"><div class="dot req">2</div><div>
-      <div class="t">Add <code>AGENTS.md</code> to the four repos missing it</div>
-      <div class="d">Under 160 lines. A map, not rules. Copy the template above and fill the table with where that repo's documents actually live.</div>
-    </div></div>
-    <div class="step"><div class="dot req">3</div><div>
-      <div class="t">Add a LICENSE to coco-hermes</div>
-      <div class="d">Match whatever the parent repo uses. Without one the code is legally untouchable.</div>
-    </div></div>
-    <div class="step"><div class="dot">4</div><div>
-      <div class="t">Write <code>docs/rules.md</code> for the repo you touch most</div>
-      <div class="d">Ten bullets, each with a measurement. Not six repos — <b>one</b>. Watch whether it changes a review before rolling it out. This is the highest-leverage document and you have none.</div>
-    </div></div>
-    <div class="step"><div class="dot opt">5</div><div>
-      <div class="t">Add the PR template and start <code>memory.md</code></div>
-      <div class="d">Only after step 4 proved itself. The template is a copy; memory takes real writing.</div>
-    </div></div>
+  <div class="alert warn">
+    <p><b>Change detection, or the gate gets bypassed.</b> Run the expensive checks only when the
+    language they cover changed. A docs-only commit should pass in well under a second; a change
+    to Python should run the suite. Change detection is safe here because anything that can break
+    a test <i>is</i> a source change — a fixture is a source file.</p>
   </div>
-  <div class="callout">
-    <b>The thing to resist:</b> creating all six documents in all six repos because the audit says so. An audit is a map of the gap, not a work order. Fix the gate everywhere, then earn the rest repo by repo.
+  <div class="alert">
+    <p><b>A missing tool is an environment problem, not a code problem.</b> The hook warns and
+    continues rather than failing the push, because blaming the author for a broken toolchain is
+    how a gate loses its authority. CI is the backstop for the check that could not run.</p>
   </div>
 </div>
 
+<!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="card">
-  <h2>If you remember one thing</h2>
-  <p class="sub" style="margin-bottom:0">
-    <b>Maintenance is not tidying. It is keeping the memory the next session depends on.</b> A human forgets and asks. An agent forgets and <i>guesses</i> — confidently, in your repo, at three in the morning. These six documents and one shell script are the difference between an agent that continues your work and one that re-derives it badly.
+  <h2><span class="n">4</span>The documents, and which one wins</h2>
+  <p class="sub">Seven files, one authority order. When two disagree, the earlier one wins — and
+  the disagreement is fixed in the same commit, never silently resolved.</p>
+  <div class="scroll">
+    <table>
+      <tr><th>#</th><th>File</th><th>Answers</th><th>Update when</th></tr>
+      <tr><td>1</td><td><code>docs/prd.md</code></td><td>What and why</td><td>Scope changes</td></tr>
+      <tr><td>2</td><td><code>docs/architecture.md</code></td><td>How the parts fit</td><td>Structure changes</td></tr>
+      <tr><td>3</td><td><code>docs/rules.md</code></td><td>The laws, each with its measurement</td><td><b>Only with the owner's approval</b></td></tr>
+      <tr><td>4</td><td><code>docs/design.md</code></td><td>What it looks like</td><td>UI work</td></tr>
+      <tr><td>5</td><td><code>docs/tasks.md</code></td><td>What is in flight</td><td>Every PR</td></tr>
+      <tr><td>6</td><td><code>docs/memory.md</code></td><td>Decisions, and dead ends</td><td>Every PR that settles something</td></tr>
+      <tr><td>7</td><td><code>.metagpt/STATE.md</code></td><td>Where we are, next action</td><td>Every session end</td></tr>
+    </table>
+  </div>
+  <p class="sub" style="margin-top:14px">
+    <code>docs/handoff.md</code> is an eighth document, and it is not part of the standard: a
+    repo being handed to another agent gets one, an agent starts from it, and it is replaced
+    rather than maintained.
   </p>
 </div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="card">
+  <h2><span class="n">5</span>Two repos, one standard</h2>
+  <p class="sub">The standard is not per-project. These are the repos following it today, and
+  what makes each one different.</p>
+  <div class="scroll">
+    <table>
+      <tr><th>Repo</th><th>Kind</th><th>What it adds to the standard</th></tr>
+      <tr>
+        <td><code>jev-use</code><br><span class="sub">public</span></td>
+        <td>Rust port of an accessibility driver, plus a voice hook</td>
+        <td>Parity with a reference implementation is the specification; macOS-only code is
+          cfg-gated, so a self-hosted runner exists to test it; the fork-PR guard in its CI is
+          load-bearing and must not be removed to "make forks work"</td>
+      </tr>
+      <tr>
+        <td><code>keydeck</code><br><span class="sub">private</span></td>
+        <td>A local console for keys, connections and routing</td>
+        <td>A key is proved by a real completion and never by a model list; the app holds no
+          key values, only masks and verdicts; another owner's config is planned, never edited</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="card">
+  <h2><span class="n">6</span>Templates, so the answer is never "write one from scratch"</h2>
+  <p class="sub">Copy from a compliant repo rather than inventing. The files that have a
+  house style:</p>
+  <ul>
+    <li><code>.githooks/pre-push</code> — the check runner, the time budget, the change
+      detection and the credentials scan. Adapt the language-specific parts; keep the structure,
+      the pass/warn/FAIL vocabulary and the reasoning in the comments.</li>
+    <li><code>.github/pull_request_template.md</code> — what changed, the exact commands run,
+      risk, rollback, and a checklist that includes "no key or secret is in this diff".</li>
+    <li><code>CONTRIBUTING.md</code> — the loop, branch naming, commit format, PR size, and a
+      definition of done.</li>
+    <li><code>.metagpt/GATE.json</code> — the machine-readable state, including the approved
+      decisions in the owner's words. It is the file the workflow reads, so it wins over prose.</li>
+    <li><code>AGENTS.md</code> — the map: the documents table, the authority order, the repo's
+      hard rules, and how to record what you learned.</li>
+  </ul>
+</div>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<div class="card">
+  <h2><span class="n">7</span>Change log — what Revision 2 fixed</h2>
+  <p class="sub">Recorded because a standard that does not say what changed is a standard
+  nobody can trust to be current.</p>
+  <ul>
+    <li><b>Audited both repos against the standard, for the first time.</b> <code>keydeck</code>
+      was failing twelve checks — 2/6 required, 0/8 documents — while being a working,
+      shipped application. A repo can be correct and unmaintainable at the same time; that is
+      what the standard exists to catch.</li>
+    <li><b><code>jev-use</code> passed the tool and failed the intent.</b> Three documents
+      called themselves "draft, awaiting owner approval" while <code>GATE.json</code> recorded
+      them approved. Both were readable; one was false. → rule 11.</li>
+    <li><b>The gate gained <code>repo-check</code></b> as its second scan, so a credential
+      committed earlier is caught on the next push rather than never.</li>
+    <li><b>Change detection replaced "always run the suite"</b> in a Python repo's hook: a
+      docs-only commit now passes in 0.37 s instead of 12 s. The reasoning that had justified
+      the slow version contained an error — a fixture change <i>is</i> a source change, so
+      detection cannot miss it.</li>
+    <li><b>Rules 9 and 10 are new.</b> A public repo brings its own keys; one checkout per
+      repository. Both came from incidents on this machine rather than from theory.</li>
+    <li><b>Rule 12, and this document's own meta tag.</b> The playbook was three weeks stale
+      because nothing examined it. Now the tool compares its check list against the list
+      declared at the top of this page, and fails on a mismatch.</li>
+  </ul>
+</div>
+
+<footer>
+  Revision 2 · 2026-09-20 · the source of truth for the standard ·
+  verified by <span class="mono">scripts/repo-check</span>
+</footer>
 
 </div>
 </body>
