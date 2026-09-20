@@ -123,6 +123,66 @@ is covered locally.
 
 **Install the hook once per clone:** `git config core.hooksPath .githooks`
 
+### D8 - T1 answered: objc2-application-services works. Build on it (2026-09-20)
+
+**The question was:** does `objc2-application-services` expose the four AX entry points
+the port needs, and can they actually be **called**, not merely referenced?
+
+**Answer: yes to both.** Verified by compiling and running a live probe against five real
+apps, not by reading documentation.
+
+| What we needed | What the crate calls it |
+| --- | --- |
+| `AXUIElementCopyAttributeValue` | `AXUIElement::copy_attribute_value` |
+| `AXUIElementCopyActionNames` | `AXUIElement::copy_action_names` |
+| `AXUIElementSetMessagingTimeout` | `AXUIElement::set_messaging_timeout` |
+| `AXValueGetValue` | `AXValue::value` |
+
+**Runtime proof, one line each.** The raw C names still exist but are `#[deprecated]` with
+the message *"renamed to `AXUIElement::copy_attribute_value`"*, so the method form is the
+intended API, not a wrapper we are inventing.
+
+```
+AXUIElement::new_application(pid)        created
+AXUIElementSetMessagingTimeout(2.0)      AXError(0)            <- rule R2 works
+AXUIElementCopyAttributeValue("AXRole")  Some("AXApplication")
+AXUIElementCopyActionNames               AXError(0)
+AXValueGetValue(CGPoint)                 true -> (0, 900)      <- rule R1's input
+```
+
+**Things the spike settled that the design could not have guessed:**
+
+1. **The crate needs the `HIServices` feature.** Without it the whole AX module is gated
+   out and nothing compiles. `AXError` is a separate feature.
+2. **It returns `CFRetained<T>`, not `objc2::rc::Retained<T>`.** Different type, different
+   `from_raw` signature (takes `NonNull`). Easy to get wrong; costs a compile cycle.
+3. **`CFArray::value_at_index` returns a bare `*const c_void`**, not an `Option`. Null
+   checks are the caller's job.
+4. **`AXError` is a newtype over `i32`** with PascalCase associated consts, compared as
+   `err.0 == 0`.
+
+**A real-world condition appeared during the spike, and it justifies rule R2.** PI-Desktop
+returned `AXError(-25204)` = `CannotComplete` on **every** attribute, reproducibly across
+attempts, while Finder, Terminal, Notes and Chrome all answered normally. Without the 2 s
+messaging timeout that call does not fail - it **hangs**, and the walk never returns.
+
+Error codes worth knowing, confirmed against the crate's own constants:
+
+| Code | Name | Meaning here |
+| --- | --- | --- |
+| `-25204` | `CannotComplete` | app did not answer in time. R2 catches it. |
+| `-25205` | `AttributeUnsupported` | normal: an app element has no `AXPosition` |
+| `-25211` | `APIDisabled` | the process lacks Accessibility permission |
+
+**Consequence:** `docs/architecture.md` section 5 is no longer "planned / unknown". The
+dependency choice is settled, the method names are known, and T2 and T3 can be written
+against a real API instead of an assumed one. The fallback option (vendoring
+`accessibility-sys`) is dropped.
+
+**The spike crate was deleted.** Its value was the answer, not the code; the real
+implementation arrives in T2/T3 with proper tests. Recorded here so the next session does
+not re-probe.
+
 ---
 
 ## Dead ends - do not repeat these
