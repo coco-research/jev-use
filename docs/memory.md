@@ -705,6 +705,8 @@ up editing different copies of the same file.**
 
 ### D18 - The fingerprint is the reference's hash, pinned by vectors (2026-09-20)
 
+> Numbered D18 because D17 already records the one-checkout move on main.
+
 **Chosen:** `ElementTable::fingerprint` is
 `sha256("|".join(f"{kind}:{label}:{value}")).hexdigest()[:16]` over the addressable table,
 exactly as the reference computes it (`ax.py:372-374`). The previous FNV-1a/64 body, which
