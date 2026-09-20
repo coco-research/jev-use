@@ -133,7 +133,7 @@ See `docs/design.md`.
 
 | Store | Holds | Location |
 | --- | --- | --- |
-| Capability registry | name -> how to fulfil it | local file, format TBD |
+| Capability registry | name -> how to fulfil it | local file; format is an open question |
 | Task list | what is in flight | `docs/tasks.md` for now, DB later |
 | History | what was asked, what happened | local SQLite |
 | Settings | hotkey, voice, model | local file |

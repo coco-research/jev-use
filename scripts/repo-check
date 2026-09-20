@@ -1,0 +1,488 @@
+#!/usr/bin/env python3
+"""repo-check - audit a repository against the standing repo standard.
+
+The playbook says what every repo should carry. This checks it, because a standard
+nobody can verify is a suggestion.
+
+    repo-check                    audit the repo you are standing in
+    repo-check --repo ~/code/x    audit another repo
+    repo-check --json             machine-readable, for CI or an agent
+    repo-check --fix              create the missing files from templates
+
+Exit codes: 0 compliant, 1 gaps found, 2 the check itself failed.
+
+The standard has three tiers, and only tier 1 is mandatory:
+
+  1 REQUIRED   no repo is exempt. Missing any of these fails the audit.
+  2 EXPECTED   a repo with code must have these. A docs-only repo may skip.
+  3 OPTIONAL   adopt when the repo is big enough to need them.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+GREEN, RED, YELLOW, DIM, BOLD, RESET = (
+    "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[1m", "\033[0m"
+)
+
+# Placeholder text that means a file was created but never filled in. A doc that
+# still says this is worse than a missing one, because it reads as done.
+PLACEHOLDERS = (
+    "TODO", "TBD", "FIXME", "<fill", "lorem ipsum",
+    "*(nothing yet", "coming soon",
+)
+
+MIN_BYTES = 200          # below this a doc is a stub, not a doc
+AGENTS_MAX_LINES = 160   # it is a routing table, not an essay
+PATH_PATTERN = r"/Users/[a-z][a-z0-9_.-]+/|/home/[a-z][a-z0-9_-]+/"
+
+
+
+class Finding:
+    __slots__ = ("tier", "name", "ok", "detail", "hint")
+
+    def __init__(self, tier: int, name: str, ok: bool, detail: str = "", hint: str = ""):
+        self.tier, self.name, self.ok, self.detail, self.hint = tier, name, ok, detail, hint
+
+    def as_dict(self) -> dict:
+        return {"tier": self.tier, "name": self.name, "ok": self.ok,
+                "detail": self.detail, "hint": self.hint}
+
+
+def run_git(repo: Path, *args: str) -> str:
+    try:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args],
+            capture_output=True, text=True, timeout=20,
+        ).stdout
+    except Exception:
+        return ""
+
+
+def is_git_repo(repo: Path) -> bool:
+    return (repo / ".git").exists()
+
+
+def tracked(repo: Path) -> list[str]:
+    out = run_git(repo, "ls-files")
+    return [f for f in out.splitlines() if f.strip()]
+
+
+def read(repo: Path, rel: str) -> str:
+    try:
+        return (repo / rel).read_text(errors="replace")
+    except OSError:
+        return ""
+
+
+def has_placeholder(text: str) -> str | None:
+    low = text.lower()
+    for p in PLACEHOLDERS:
+        if p.lower() in low:
+            return p
+    return None
+
+
+# ── tier 1: every repo ─────────────────────────────────────────────────────
+
+def check_required(repo: Path, files: list[str]) -> list[Finding]:
+    out: list[Finding] = []
+
+    # README
+    if "README.md" in files:
+        body = read(repo, "README.md")
+        stub = has_placeholder(body)
+        if stub:
+            out.append(Finding(1, "README.md", False, f"still contains {stub!r}",
+                               "README must say what this is and how to run it"))
+        else:
+            out.append(Finding(1, "README.md", True, f"{len(body.splitlines())} lines"))
+    else:
+        out.append(Finding(1, "README.md", False, "missing",
+                           "60 lines: what it is, how to run it"))
+
+    # AGENTS.md - the file an agent reads first
+    if "AGENTS.md" in files:
+        body = read(repo, "AGENTS.md")
+        lines = len(body.splitlines())
+        if lines > AGENTS_MAX_LINES:
+            out.append(Finding(1, "AGENTS.md", False,
+                               f"{lines} lines, over the {AGENTS_MAX_LINES} limit",
+                               "it is a routing table, not an essay - move detail into docs/"))
+        elif has_placeholder(body):
+            out.append(Finding(1, "AGENTS.md", False, f"contains {has_placeholder(body)!r}"))
+        else:
+            out.append(Finding(1, "AGENTS.md", True, f"{lines} lines"))
+    else:
+        out.append(Finding(1, "AGENTS.md", False, "missing",
+                           "the one file an agent reads first: where the docs are, which wins"))
+
+    # LICENSE - a repo without one is legally untouchable
+    if any(f in files for f in ("LICENSE", "LICENSE.md", "LICENSE.txt", "COPYING")):
+        out.append(Finding(1, "LICENSE", True, "present"))
+    else:
+        out.append(Finding(1, "LICENSE", False, "missing",
+                           "without a licence nobody may legally use or contribute"))
+
+    # The gate
+    hook = repo / ".githooks" / "pre-push"
+    if hook.exists():
+        if os.access(hook, os.X_OK):
+            out.append(Finding(1, ".githooks/pre-push", True, "present and executable"))
+        else:
+            out.append(Finding(1, ".githooks/pre-push", False, "not executable",
+                               f"chmod +x {hook}"))
+    else:
+        out.append(Finding(1, ".githooks/pre-push", False, "missing",
+                           "the local gate: fmt, lint, test, docs, secret scan"))
+
+    # The hook must actually be wired up, or it is decoration
+    if is_git_repo(repo):
+        hp = run_git(repo, "config", "core.hooksPath").strip()
+        if hp == ".githooks":
+            out.append(Finding(1, ".githooks wired", True, "core.hooksPath = .githooks"))
+        else:
+            out.append(Finding(1, ".githooks wired", False,
+                               f"core.hooksPath is {hp or '(unset)'}",
+                               "git config core.hooksPath .githooks"))
+        # NOTE: there is deliberately no "you are on main" check. After a squash-merge
+        # you are always on main, so it fires on the correct state and teaches people to
+    else:
+        out.append(Finding(1, "git repository", False, "not a git repo",
+                           "the hook, the PR flow and the audit all need git"))
+    return out
+# ── tier 1: credentials ────────────────────────────────────────────────────
+#
+# The hard part is not finding credential-shaped strings, it is not crying wolf. Two
+# false positives cost real time before this was corrected:
+#
+#   1. A PEM header inside a #[cfg(test)] test that verifies keys are WITHHELD. Flagging
+#      it is backwards: the code was doing the right thing.
+#   2. `Bearer c11-evidence-token-not-production`, a placeholder that names itself.
+#
+# A linter that cries wolf gets ignored, and then it protects nothing. So:
+#   - self-declaring placeholder values are excluded outright
+#   - a private key block must carry real base64 payload, not just a marker string
+#   - matches in test or evidence context are reported at tier 2, not tier 1
+
+SECRET_PATTERNS = {
+    "OpenAI-shaped key": r"sk-[A-Za-z0-9]{20,}",
+    "gho token": r"gho_[A-Za-z0-9]{20,}",
+    "gcli token": r"gcli_[A-Za-z0-9]{10,}",
+    "apikey_ key": r"apikey_[A-Za-z0-9]{10,}",
+    "Google key": r"AQ\.[A-Za-z0-9_-]{20,}",
+    # A marker alone is not a key. Require real base64 payload after the header.
+    "private key block": r"-----BEGIN [A-Z ]*PRIVATE KEY-----[^-]{0,40}?-----END",
+    "bearer literal": r"[Bb]earer\s+[A-Za-z0-9_\-.]{32,}",
+}
+
+# If a matched value contains any of these, it is naming itself as fake. Not a finding.
+PLACEHOLDER_MARKERS = (
+    "not-production", "notproduction", "example", "placeholder", "dummy",
+    "redacted", "changeme", "your-", "yourkey", "insert-", "fake", "sample",
+    "xxxxxxxx", "aaaaaa", "test-token", "testtoken", "localhost",
+)
+
+BINARY_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".pdf", ".ico",
+                   ".woff", ".woff2", ".ttf", ".zip", ".gz", ".mp4", ".mov"}
+
+# Contexts where a credential-shaped string is expected and usually harmless: test
+# fixtures, recorded evidence, sample configs. Reported, but not as a hard failure.
+NONPROD_PATH_RE = re.compile(
+    r"(^|/)(tests?|__tests__|spec|fixtures?|examples?|evidence|samples?)/"
+    r"|(_test|\.test|\.spec|test_)\."
+    r"|\.(log|txt)$",
+    re.I,
+)
+NONPROD_BODY_RE = re.compile(r"#\[cfg\(test\)\]|^\s*mod tests\b|^\s*def test_|describe\(", re.M)
+
+
+def _scan(repo: Path, files: list[str], pattern: str) -> list[tuple[str, int, str, str]]:
+    """Every match, as (file, line, matched text, whole file body)."""
+    hits: list[tuple[str, int, str, str]] = []
+    for rel in files:
+        if Path(rel).suffix.lower() in BINARY_SUFFIXES:
+            continue
+        body = read(repo, rel)
+        if not body:
+            continue
+        for m in re.finditer(pattern, body):
+            hits.append((rel, body[: m.start()].count("\n") + 1, m.group(0), body))
+    return hits
+
+
+def _is_placeholder(value: str) -> bool:
+    """True when the value names itself as fake, e.g. `...-not-production`."""
+    low = value.lower()
+    return any(marker in low for marker in PLACEHOLDER_MARKERS)
+
+
+def _is_nonprod(rel: str, body: str) -> bool:
+    """Test fixture, example, or recorded evidence rather than product code."""
+    return bool(NONPROD_PATH_RE.search(rel) or NONPROD_BODY_RE.search(body))
+
+
+def check_secrets(repo: Path, files: list[str]) -> list[Finding]:
+    """Credentials in PRODUCT code fail. Credential-shaped strings in test or evidence
+    context are reported at tier 2, because that is where fixtures live and treating
+    them as breaches is how a linter loses its credibility."""
+    hard: list[tuple[str, str]] = []
+    soft: list[tuple[str, str]] = []
+
+    for label, pat in SECRET_PATTERNS.items():
+        for rel, line, text, body in _scan(repo, files, pat):
+            if _is_placeholder(text):
+                continue
+            where = f"{rel}:{line}"
+            (soft if _is_nonprod(rel, body) else hard).append((where, label))
+
+    out: list[Finding] = []
+    if hard:
+        shown = ", ".join(f"{w} ({l})" for w, l in hard[:4])
+        out.append(Finding(1, "no credentials in tracked files", False,
+                           f"{len(hard)} hit(s) in product code: {shown}",
+                           "remove it, then ROTATE the credential - assume it is public"))
+    else:
+        out.append(Finding(1, "no credentials in tracked files", True,
+                           f"{len(files)} file(s) scanned, none in product code"))
+    if soft:
+        shown = ", ".join(f"{w}" for w, _ in soft[:3])
+        out.append(Finding(2, "credentials outside test/evidence", False,
+                           f"{len(soft)} in fixtures or logs: {shown}",
+                           "expected in fixtures; confirm each is a placeholder"))
+    return out
+
+def check_machine_paths(repo: Path, files: list[str]) -> list[Finding]:
+    """Absolute home paths. NOT a secret, and only a problem when a repo is public.
+
+    This lived in the required tier at first and made the audit useless: a private repo
+    full of build logs legitimately contains hundreds, so a tier-1 failure taught you to
+    ignore the whole report. It is a judgement call, so it reports a count and lets the
+    owner decide.
+    """
+    hits = _scan(repo, files, PATH_PATTERN)
+    if not hits:
+        return [Finding(2, "no machine-specific paths", True, "none found")]
+    files_hit = len({f for f, _, _, _ in hits})
+    hint = "private repo: harmless. Before going public, scrub logs and evidence dumps."
+    return [Finding(2, "no machine-specific paths", False,
+                    f"{len(hits)} occurrence(s) across {files_hit} file(s)", hint)]
+
+
+# ── tier 2: repos that carry code ──────────────────────────────────────────
+
+CODE_MARKERS = (".rs", ".py", ".ts", ".js", ".go", ".swift", ".c", ".cpp", ".java", ".rb")
+
+
+def looks_like_code(repo: Path, files: list[str]) -> bool:
+    if any(Path(f).suffix in CODE_MARKERS for f in files):
+        return True
+    return any((repo / m).exists() for m in
+               ("Cargo.toml", "package.json", "pyproject.toml", "go.mod", "Makefile"))
+
+
+def check_expected(repo: Path, files: list[str]) -> list[Finding]:
+    out: list[Finding] = []
+    code = looks_like_code(repo, files)
+
+    # CI, wherever it can run
+    ci = [f for f in files if f.startswith(".github/workflows/") and f.endswith((".yml", ".yaml"))]
+    if ci:
+        out.append(Finding(2, "CI workflow", True, ", ".join(ci[:2])))
+    else:
+        out.append(Finding(2, "CI workflow", False, "no .github/workflows/*.yml",
+                           "backstop for anyone who clones without the hook"))
+
+    # PR template - forces evidence over assertion
+    if any(f.startswith(".github/pull_request_template") for f in files):
+        out.append(Finding(2, "PR template", True, "present"))
+    else:
+        out.append(Finding(2, "PR template", False, "missing",
+                           "a template is how 'evidence not assertions' becomes the default"))
+
+    # CONTRIBUTING, only once other people can push
+    if "CONTRIBUTING.md" in files:
+        out.append(Finding(2, "CONTRIBUTING.md", True, "present"))
+    else:
+        out.append(Finding(2, "CONTRIBUTING.md", False, "missing",
+                           "the loop, branch naming, PR size, cadences"))
+
+    if not code:
+        return out
+
+    # A repo with code must state its invariants
+    rules = "docs/rules.md"
+    if rules in files:
+        body = read(repo, rules)
+        bullets = len(re.findall(r"^#{2,3}\s", body, re.M)) or body.count("\n- ")
+        out.append(Finding(2, "docs/rules.md", True, f"~{bullets} rule(s) declared"))
+    else:
+        out.append(Finding(2, "docs/rules.md", False, "missing",
+                           "the invariants, each with the measurement behind it"))
+    # Tests, wherever the language convention puts them. Rust uses inline
+    # `#[cfg(test)]` modules and Python uses `def test_`, so matching directory names
+    # alone reports "no tests" for a repo full of them.
+    test_file_re = re.compile(
+        r"(^|/)(tests?|__tests__|spec)/|(_test|\.test|\.spec|test_)\.",
+        re.I,
+    )
+    test_inline_re = re.compile(
+        r"#\[cfg\(test\)\]|#\[test\]"      # Rust
+        r"|^\s*def test_\w+"                # Python
+        r"|^\s*(describe|it|test)\s*\("     # JS / TS
+        r"|func Test\w+\("                  # Go
+        r"|@Test\b",                        # Java / Kotlin
+        re.M,
+    )
+    test_files = [f for f in files if test_file_re.search(f)]
+    inline = [f for f in files if test_inline_re.search(read(repo, f))]
+    if test_files or inline:
+        bits = []
+        if test_files:
+            bits.append(f"{len(test_files)} test file(s)")
+        if inline:
+            bits.append(f"{len(inline)} with inline tests")
+        out.append(Finding(2, "tests", True, ", ".join(bits)))
+    else:
+        out.append(Finding(2, "tests", False, "no tests found",
+                           "the hook cannot pass without something to run"))
+
+    return out
+
+
+# ── tier 3: the six documents ──────────────────────────────────────────────
+
+DOCS = {
+    "docs/prd.md": "what and why",
+    "docs/architecture.md": "how the parts fit",
+    "docs/rules.md": "the laws, with measurements",
+    "docs/design.md": "what it looks like",
+    "docs/tasks.md": "what is in flight",
+    "docs/memory.md": "decisions and dead ends",
+}
+
+
+def check_docs(repo: Path, files: list[str]) -> list[Finding]:
+    out: list[Finding] = []
+    for rel, purpose in DOCS.items():
+        if rel not in files:
+            out.append(Finding(3, rel, False, "missing", purpose))
+            continue
+        body = read(repo, rel)
+        if len(body) < MIN_BYTES:
+            out.append(Finding(3, rel, False, f"{len(body)} bytes, a stub",
+                               f"{purpose} - write it or delete it"))
+            continue
+        ph = has_placeholder(body)
+        if ph:
+            out.append(Finding(3, rel, False, f"contains {ph!r}", "fill it in or delete it"))
+        else:
+            out.append(Finding(3, rel, True, f"{len(body.splitlines())} lines"))
+    return out
+
+
+def check_metagpt(repo: Path, files: list[str]) -> list[Finding]:
+    out: list[Finding] = []
+    state = ".metagpt/STATE.md"
+    gate = ".metagpt/GATE.json"
+    if state in files:
+        body = read(repo, state)
+        starts = body.lstrip().lower().startswith("next action")
+        out.append(Finding(3, state, starts, "starts with 'Next action:'" if starts
+                           else "must start with 'Next action:'"))
+    else:
+        out.append(Finding(3, state, False, "missing",
+                           "where we are and what happens next, one glance"))
+    if gate in files:
+        try:
+            json.loads(read(repo, gate))
+            out.append(Finding(3, gate, True, "valid JSON"))
+        except Exception as e:
+            out.append(Finding(3, gate, False, f"invalid JSON: {e}"))
+    else:
+        out.append(Finding(3, gate, False, "missing", "machine-readable gate state"))
+    return out
+
+
+# ── report ─────────────────────────────────────────────────────────────────
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Audit a repo against the standing standard.")
+    ap.add_argument("--repo", default=".", help="path to the repo (default: cwd)")
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--tier", type=int, default=3, choices=(1, 2, 3),
+                    help="highest tier to check (default 3)")
+    args = ap.parse_args()
+
+    repo = Path(args.repo).expanduser().resolve()
+    if not repo.is_dir():
+        print(f"repo-check: not a directory: {repo}", file=sys.stderr)
+        return 2
+
+    files = tracked(repo) if is_git_repo(repo) else \
+        [str(p.relative_to(repo)) for p in repo.rglob("*") if p.is_file()
+         and ".git" not in p.parts]
+
+    findings: list[Finding] = []
+    findings += check_required(repo, files)
+    findings += check_secrets(repo, files)
+    findings += check_machine_paths(repo, files)
+    if args.tier >= 2:
+        findings += check_expected(repo, files)
+    if args.tier >= 3:
+        findings += check_docs(repo, files)
+        findings += check_metagpt(repo, files)
+
+    if args.json:
+        print(json.dumps({
+            "repo": str(repo),
+            "compliant": all(f.ok for f in findings if f.tier == 1),
+            "findings": [f.as_dict() for f in findings],
+        }, indent=2))
+        return 0 if all(f.ok for f in findings if f.tier == 1) else 1
+
+    print(f"{BOLD}{repo.name}{RESET}  {DIM}{repo}{RESET}\n")
+    tier_names = {1: "REQUIRED", 2: "EXPECTED", 3: "THE SIX DOCUMENTS"}
+    for tier in (1, 2, 3):
+        if tier > args.tier:
+            continue
+        rows = [f for f in findings if f.tier == tier]
+        if not rows:
+            continue
+        passed = sum(1 for f in rows if f.ok)
+        print(f"{BOLD}{tier_names[tier]}{RESET}  {DIM}{passed}/{len(rows)}{RESET}")
+        for f in rows:
+            mark = f"{GREEN}pass{RESET}" if f.ok else f"{RED}GAP {RESET}"
+            print(f"  {mark}  {f.name:26s} {DIM}{f.detail}{RESET}")
+            if not f.ok and f.hint:
+                print(f"          {YELLOW}-> {f.hint}{RESET}")
+        print()
+
+    required = [f for f in findings if f.tier == 1 and not f.ok]
+    if required:
+        print(f"{RED}{BOLD}NOT COMPLIANT{RESET}  {len(required)} required gap(s). "
+              f"Tier 1 is mandatory for every repo.")
+        return 1
+    soft = [f for f in findings if f.tier > 1 and not f.ok]
+    if soft:
+        print(f"{GREEN}{BOLD}COMPLIANT{RESET}  required tier clean. "
+              f"{len(soft)} improvement(s) available above.")
+        return 0
+    print(f"{GREEN}{BOLD}COMPLIANT{RESET}  every check passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        print(f"repo-check: {type(exc).__name__}: {exc}", file=sys.stderr)
+        raise SystemExit(2)
