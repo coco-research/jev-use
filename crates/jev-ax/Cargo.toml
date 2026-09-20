@@ -10,6 +10,15 @@ publish = false
 [lints]
 workspace = true
 
+
+# computes `sha256("|".join(f"{kind}:{label}:{value}"))[:16]` and parity (rule R8) compares
+# that string across the two implementations.
+#
+# Deliberately NOT target-gated: it is pure logic, so ubuntu CI tests it. Keeping the hash
+# in the default dependency set is the whole reason it can be verified on a runner that has
+# no Accessibility grant.
+[dependencies]
+sha2 = "0.10"
 # macOS-only, and target-scoped on purpose. CI runs on ubuntu, where these do not
 # exist. Keeping them out of the default dependency set is what lets the pure logic
 # (Rect, Element, Limits, fingerprint) stay testable in CI while the platform code is

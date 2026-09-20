@@ -29,6 +29,8 @@
 // FFI call, which trains a reader to ignore the one that matters.
 #![allow(unsafe_code)]
 
+use sha2::{Digest, Sha256};
+
 /// Typed accessibility attribute reads, with the error codes kept honest.
 ///
 /// Gated as a whole, unlike [`app`], because it has no platform-independent logic to
@@ -162,10 +164,23 @@ impl ElementTable {
     /// The agent loop compares this between steps. Three identical operations with an
     /// unchanged fingerprint is a loop; three identical operations that each move the
     /// screen is legitimate progress (clicking "new tab" three times opens three tabs).
+    ///
+    /// **The algorithm is the reference's, not ours to choose.** Python computes
+    /// `sha256("|".join(f"{kind}:{label}:{value}")).hexdigest()[:16]` over the addressable
+    /// table (`ax.py:372`). Rule R5 alone would tolerate any stable hash, because it
+    /// compares one implementation against itself. Rule R8 does not: it compares this
+    /// string across implementations, so a different hash reports a port bug on every
+    /// screen. An earlier FNV-1a body here had exactly that problem.
+    ///
+    /// Only `kind`, `label` and `value` feed it. `nodes_seen`, `hidden`, `elapsed_ms`,
+    /// `text` and `rect` are excluded deliberately: they differ between two observations
+    /// of a screen that did not change.
     pub fn fingerprint(&self) -> String {
-        let mut acc: u64 = 0xcbf2_9ce4_8422_2325;
+        use std::fmt::Write as _;
+
+        let mut rows = Vec::with_capacity(self.elements.len());
         for e in &self.elements {
-            let row = format!(
+            rows.push(format!(
                 "{}:{}:{}",
                 match e.kind {
                     Kind::Click => "click",
@@ -174,13 +189,19 @@ impl ElementTable {
                 },
                 e.label,
                 e.value.as_deref().unwrap_or("")
-            );
-            for b in row.as_bytes() {
-                acc ^= u64::from(*b);
-                acc = acc.wrapping_mul(0x100_0000_01b3);
-            }
+            ));
         }
-        format!("{acc:016x}")
+
+        let mut hex = String::with_capacity(64);
+        for byte in Sha256::digest(rows.join("|").as_bytes()) {
+            // Writing into a String cannot fail, so the result is dropped rather than
+            // unwrapped: the workspace denies `unwrap_used` in new code.
+            let _ = write!(hex, "{byte:02x}");
+        }
+        // The reference keeps 16 of the 64 hex characters. Rendering all of them and then
+        // truncating is what keeps this identical to Python's `.hexdigest()[:16]`.
+        hex.truncate(16);
+        hex
     }
 }
 
@@ -351,6 +372,66 @@ mod tests {
             a.fingerprint(),
             b.fingerprint(),
             "a new element must change it"
+        );
+    }
+
+    /// Golden vectors, generated from the reference's own expression
+    /// (`sha256("|".join(f"{kind}:{label}:{value}")).hexdigest()[:16]`, `ax.py:372-374`).
+    ///
+    /// These are a contract, not examples. If one fails, the port and the reference
+    /// disagree about what "the screen did not change" means, which is what rule R5's
+    /// repeat guard rests on - and the failure would otherwise surface as a mysterious
+    /// loop that never fires or a run that stops mid-task.
+    ///
+    /// The first vector is also a live value: an observation that finds nothing
+    /// addressable returns exactly it.
+    #[test]
+    fn fingerprint_matches_the_reference_vectors() {
+        let table = |rows: &[(Kind, &str, Option<&str>)]| ElementTable {
+            app: "Terminal".into(),
+            title: "Terminal".into(),
+            text: String::new(),
+            elements: rows
+                .iter()
+                .map(|(kind, label, value)| Element {
+                    value: (*value).map(str::to_string),
+                    ..el(*kind, label, None)
+                })
+                .collect(),
+            nodes_seen: rows.len(),
+            hidden: 0,
+            truncated: false,
+            elapsed_ms: 0,
+        };
+
+        // sha256("")[:16]
+        assert_eq!(table(&[]).fingerprint(), "e3b0c44298fc1c14", "empty table");
+        // sha256("click:Button:")[:16]
+        assert_eq!(
+            table(&[(Kind::Click, "Button", None)]).fingerprint(),
+            "778dd497b3ed8581",
+            "a row with no value"
+        );
+        // sha256("fill:Count:2")[:16] - a number arrives already rendered, the way
+        // Python's str() renders it, not the way Rust would format an f64.
+        assert_eq!(
+            table(&[(Kind::Fill, "Count", Some("2"))]).fingerprint(),
+            "4db8ee2ea557bd9d",
+            "numeric value"
+        );
+        // sha256("click:Ünïcode 日本語:")[:16] - hash the UTF-8 bytes; never slice by byte
+        // offset into a label, or a multi-byte character becomes a false difference.
+        assert_eq!(
+            table(&[(Kind::Click, "Ünïcode 日本語", None)]).fingerprint(),
+            "a7eec842417fa13d",
+            "non-ASCII label"
+        );
+        // sha256("click:A:|fill:B:2")[:16] - rows are JOINED. Concatenating them without
+        // the separator produces a different hash for the same screen.
+        assert_eq!(
+            table(&[(Kind::Click, "A", None), (Kind::Fill, "B", Some("2"))]).fingerprint(),
+            "f1f4f50a854143a2",
+            "two rows, separated"
         );
     }
 
