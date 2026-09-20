@@ -78,7 +78,8 @@ disagree, the port is wrong until proven otherwise.
 
 | Thing | Where | State |
 | --- | --- | --- |
-| The repo | `~/code/jev-use` | `main`, clean, public at `coco-research/jev-use` |
+| **The repo (canonical)** | **`~/Rijul Kalra/Coco Research/products/jev-use`** | `main`, clean, public at `coco-research/jev-use`. **Work here.** |
+| The voice app's hook path | `…/products/jev-use/scripts/voice-hook` | CoCo Voice's `external_script_path` points here (the path has spaces - quote it) |
 | Python reference | `~/code/jev-computeruse/jev_desktop/` | The spec. Runs today: `jev-use --table --app Terminal` |
 | Decision layer (upstream) | `~/code/jev-ultrafast/` | Imported, never forked (D4) |
 | Settings (all of it) | `~/.config/jev-use/settings.json` | `mode=prefix`, `trigger=emma`, driver absolute |
@@ -86,9 +87,12 @@ disagree, the port is wrong until proven otherwise.
 | Voice hook | `~/.local/bin/jev-voice-hook` | Live, spawned by CoCo Voice |
 | Voice app | `/Applications/Coco Voice.app` | `paste_method: external_script` -> `scripts/voice-hook` |
 | Hook log | `~/Library/Logs/jev-voice-hook.log` | One line per utterance, one per backgrounded run |
-| Self-hosted runner | `~/actions-runner-jevu` + LaunchAgent `com.coco.github-runner-jevu` | online |
+| Self-hosted runner | `~/actions-runner-jevu` + LaunchAgent `com.coco.github-runner-jevu` | online; it checks out into its own `_work/`, not the repo |
 | Usage/spend reporter | `scripts/usage-check` | Reads the `usage` section of the settings file |
 
+**There is exactly ONE checkout.** `~/code/jev-use` was retired on 2026-09-20 (D17): two
+checkouts of one repo is how two agents end up editing different copies of the same file.
+If you find a second copy anywhere, that is a bug - delete it and say so.
 **`jev-config doctor` is the fastest way to see whether the machine is still wired up.**
 It checks the hook binary, the driver, the log, the voice app's own settings, the wallets
 and the turn log, and it prints the fix for anything it finds.
