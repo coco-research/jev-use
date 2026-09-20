@@ -8,11 +8,6 @@ The live board. Every PR updates this file.
 
 ## Now
 
-- [ ] **T3 - Typed attribute reads** (`ax/attrs.rs`) - `AXRole`, `AXTitle`, `AXDescription`,
-  `AXValue`, `AXEnabled`, `AXPosition`, `AXSize`. One function each, tested against a live
-  element.
-  - Write against `AXUIElement::copy_attribute_value` and `AXValue::value`, and return
-    `CFRetained`, not `Retained`. The dependency gotchas are in `docs/memory.md` D10.
 - [ ] **T15 - The voice hook** - a script that receives a transcript from CoCo Voice and
   decides: command (hand to Jev) or dictation (type it). Unblocked by D11.
   - Wires into `paste_method = "external_script"` + `external_script_path`. No change to
@@ -83,3 +78,22 @@ The live board. Every PR updates this file.
   - **Two bugs found in the Python reference:** `activateWithOptions(1 << 1)` is a no-op on
     macOS 14+ (the SDK deprecates that flag), and the driver calls it in two places.
   - Live check: `cargo run --example list_apps` in `crates/jev-ax`.
+
+- [x] **T3 - Typed attribute reads** (`ax/attrs.rs`) - 13 new tests, 32 total.
+  - One reader each for role, title, description, value, placeholder, enabled, position,
+    size, rect, actions and settability, over a shared `raw` and `as_text` pair. The walk
+    now has everything it needs to fill an element; it does not have to touch FFI.
+  - `raw` returns the `AXError` code instead of `Option`, because `-25205`
+    (`AttributeUnsupported`) and `-25204` (`CannotComplete`) both mean "no value" while
+    meaning opposite things about the app. Live proof: `AXPosition` on the system-wide
+    element returns exactly `-25205`, asserted as a code, not just as `err()`.
+  - **`None` never becomes a default.** An absent `AXEnabled` is `None`, not `false`; an
+    absent `AXPosition` is `None`, not `(0, 0)`. Rule R1 rests on this, so it is asserted.
+  - `as_text` prints `True`/`False` and `2880.0` the way Python does, so a parity diff
+    against the reference shows real differences rather than formatting noise (rule R8).
+  - **Live tests target the system-wide element and Finder's menu bar**, not this process.
+    A CLI test binary is not a GUI app and AX answers `-25208` for it; a UI element is not
+    reachable from one. Both chosen targets need nothing open. See `docs/memory.md` D12.
+  - `is_settable`'s positive case needs a writable attribute on an element we control,
+    which is T6's write path. Only the false case is asserted here, and that is stated in
+    the test.

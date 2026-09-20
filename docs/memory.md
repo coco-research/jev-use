@@ -335,6 +335,40 @@ answered by looking at the app's directory.
   VAD, model management and post-processing that already work, to gain nothing.
 - *Ask them for a socket or headless mode.* Not needed: the script hook exists today.
 
+### D12 - T3 done: what a live AX element actually reports, measured (2026-09-20)
+
+Four facts that the first draft of the tests got wrong, all measured with
+`crates/jev-ax/src/attrs.rs` against running apps:
+
+| Target | `AXRole` | `AXEnabled` | `AXPosition` | Actions |
+| --- | --- | --- | --- | --- |
+| System-wide element | `AXSystemWide` | `-25205` unsupported | `-25205` | **none** |
+| Our own test binary (a CLI process) | `-25208` | `-25208` | `-25208` | `-25208` |
+| A real app element (Finder) | `AXApplication` | **`False`** | `(0, 900)` | **none** |
+| Finder's menu bar | `AXMenuBar` | `True` | `(0, 0)` | `AXCancel` |
+| A menu bar item | `AXMenuBarItem` | not measured | real rect | `AXCancel`, **`AXPress`**, `AXPick` |
+
+1. **A CLI process is not an app.** `AXUIElementCreateApplication(our_pid)` succeeds and
+   echoes the pid back, but every attribute read returns `-25208` (`NotImplemented`).
+   So "point the tests at ourselves" does not work: there is no UI element to read.
+2. **An app element is not enabled and has no actions.** `enabled: False`, `0` actions -
+   the first draft asserted the opposite and the failure was the test's fault, not the
+   code's. Do not assume an app element behaves like a control.
+3. **The system-wide element is the one target that always exists** and needs no
+   permission beyond the Accessibility grant, which makes it the right subject for the
+   error-code and absent-attribute tests.
+4. **`AXMenuBar` is one attribute read away from any app element**, gives an element with
+   actions, and its children report `AXPress`. That is a live, always-available proof of
+   the clickability rule, with nothing to launch first.
+
+**Dependency note:** `as_text` needs `CFNumber`, so the `CFNumber` feature has to be named
+on `objc2-core-foundation` alongside `CFString` and `CFArray`. Without it, numbers coerce
+to an empty string - which would look like an element with no value rather than like a
+missing feature.
+
+**Still open from this task:** `is_settable`'s true case cannot be proven from an element
+we control until T6 writes a value. The test says so instead of pretending otherwise.
+
 ## Dead ends - do not repeat these
 
 ### X1 - Do not try to read a browser page through the accessibility tree (2026-09-19)

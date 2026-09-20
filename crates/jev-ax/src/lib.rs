@@ -25,9 +25,17 @@
 #![warn(missing_docs)]
 // This crate wraps Objective-C and Core Foundation. `unsafe` is the interface, not an
 // oversight, so the workspace's `unsafe_code = warn` is allowed here and the reason is
-// documented at each call site instead. Removing this would produce a warning on every
+// documented at each call site instead. Leaving it on would produce a warning on every
 // FFI call, which trains a reader to ignore the one that matters.
 #![allow(unsafe_code)]
+
+/// Typed accessibility attribute reads, with the error codes kept honest.
+///
+/// Gated as a whole, unlike [`app`], because it has no platform-independent logic to
+/// preserve: every function in it is an FFI call. `app` keeps a pure matcher that runs in
+/// CI; this module has nothing that can.
+#[cfg(target_os = "macos")]
+pub mod attrs;
 
 /// App resolution and activation. See the module docs for why the matching logic is
 /// pure while the enumeration is macOS-only.
