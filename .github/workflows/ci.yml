@@ -112,6 +112,15 @@ jobs:
 
       # Compiling is not the same as being allowed to look: accessibility is granted per
       # process by TCC. If this step fails, the fix is in System Settings, not in the code.
+      - name: diagnose (temporary)
+        run: |
+          echo "HOME=$HOME"
+          echo "PATH=$PATH"
+          echo "USER=$(id -un)"
+          echo "GITHUB_PATH had: $(cat "$GITHUB_PATH" 2>/dev/null)"
+          ls -d "$HOME/.cargo/bin" 2>&1 | head -2
+          command -v cargo || echo "(no cargo on PATH)"
+
       - name: accessibility permission
         run: cargo run --quiet --example check_access -p jev-ax
 
