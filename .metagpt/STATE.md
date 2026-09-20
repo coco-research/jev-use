@@ -5,7 +5,8 @@ drafted. All three are written but **awaiting owner review** - so the gate is `p
 `build` is not started and is blocked behind the spike.
 
 **Last action:** created the repo, scaffolded the Rust workspace, wrote the six baseline
-documents, and made CI green from the first commit.
+documents, went public under Apache-2.0 after scrubbing machine-specific content, and
+confirmed CI green on a real GitHub runner (run 35485404565: lint, test, docs all pass).
 
 ---
 

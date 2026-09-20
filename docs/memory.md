@@ -91,19 +91,19 @@ not compile is a broken contract.
 
 ### D7 - The pre-push hook is the gate; CI is the backstop (2026-09-20)
 
-**Chosen:** `.githooks/pre-push` is the gate. It runs fmt, clippy, test, docs, a secret
-scan, and (once it exists) the parity harness. The CI workflow is kept ready but its
-triggers are **manual**, because it cannot run.
+**Chosen:** `.githooks/pre-push` is the gate: fmt, clippy, test, docs, a secret scan, and
+(once it exists) the parity harness. CI runs the same checks on `ubuntu-latest` as a
+backstop, and it is green as of `d6c4201` once the repo went public.
 
 **Why, found the hard way:** the very first push to this repo failed in CI with
 *"The job was not started because an Actions budget is preventing further use."*
 
 **My first diagnosis was wrong, and the correction matters.** I assumed it was the
 macOS multiplier, since other repos in the same account run CI fine - but those are
-are **public**, and public repos get unlimited Actions minutes. I switched the runner to
+**public**, and public repos get unlimited Actions minutes. I switched the runner to
 `ubuntu-latest` at 1x, pushed again, and it **still failed with the same message.** So
-the budget is exhausted outright, not merely expensive. Do not re-litigate this by
-swapping runners; it will not help.
+the private budget was exhausted outright, not merely expensive. That is what forced the
+public flip, and the moment it went public CI ran green.
 
 **The deeper reason this split is right design, not just a workaround:** a GitHub-hosted
 macOS runner *cannot test the accessibility code at all.* It has no logged-in GUI session
@@ -115,7 +115,7 @@ runner. The behaviour this project cares about is only testable on this machine.
 | Where | Tests | Cost |
 | --- | --- | --- |
 | Pre-push hook (local) | Everything, including AX against real apps | free, ~1.5 s warm |
-| CI (ubuntu, manual) | Pure logic, types, fmt, lints, docs | **currently refused - budget exhausted** |
+| CI (ubuntu) | Pure logic, types, fmt, lints, docs | free - public repos are unlimited |
 
 The crate is kept free of macOS-only dependencies **on purpose**, so the logic stays
 testable in CI. macOS-only code goes in a module gated by `cfg(target_os = "macos")` and
