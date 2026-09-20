@@ -254,7 +254,86 @@ theory.
    features are per-type (`CFString`, `CFArray`).
 4. `default-features = false` on `objc2-app-kit` is worth keeping - the defaults pull in
    every AppKit binding - but it means `libc` and `bitflags` must be named explicitly.
----
+
+### D11 - The voice layer already exists. Use CoCo Voice, do not build one (2026-09-20)
+
+**Decision:** jev-use does **not** build its own microphone, VAD, or speech-to-text.
+`coco-research/Coco-Voice` already ships that, fully offline, and exposes a clean hook.
+
+This closes PRD open question 1 ("which speech-to-text engine - Apple's on-device, or
+`whisper-rs`?"). The answer was already made and tested by that project.
+
+**What was verified on this machine, not read:**
+
+```
+$ /Applications/Coco Voice.app/Contents/MacOS/coco-voice --transcribe-file <wav> --json
+{"audio_secs":20.25, "best_ms":3049, "rtf":6.64, "bound_backend":"MTL0",
+ "model":"handy-computer/cohere-transcribe-03-2026-gguf/...Q5_K_M.gguf",
+ "text":"Also, note that the wording was never that it doesn't work with no model. ..."}
+```
+
+**20.25 s of audio, transcribed in 3.05 s. RTF 6.64x realtime**, on the M1 GPU via Metal.
+Model load 1.63 s. Installing nothing: the app and its model were already present.
+
+**The integration point, which already exists and needs no change to that repo:**
+
+```rust
+// Coco-Voice, src-tauri/src/clipboard.rs:505
+/// Pastes text by invoking an external script.
+/// The script receives the text to paste as a single argument.
+fn paste_via_external_script(text: &str, script_path: &str) -> Result<(), String>
+```
+
+Setting `paste_method = "external_script"` and `external_script_path = <our script>` routes
+**every transcript** to us as `argv[1]`. Their app keeps the hotkey, the microphone, the
+VAD (Silero), the model management, and the Apple Intelligence post-processing.
+
+**The chain:**
+
+```
+Ctrl (their push-to-talk binding, already set)
+  -> mic -> VAD -> Cohere Transcribe (6.6x realtime) -> post-process
+  -> external script  argv[1] = transcript
+       -> jev-use: classify the intent -> answer directly, or hand it to Jev
+```
+
+**The trade-off to design around, and it is the important one:** `external_script`
+**replaces** typing. Choosing it means dictation into the focused field stops working
+unless the hook itself does the typing.
+
+So the hook must decide, per utterance: is this a **command** ("open a new tab") or
+**dictation** ("Dear team, ...")? Commands go to Jev. Dictation gets typed. That decision
+is exactly what `jev-classify` already does for lanes, and it is fast enough to sit on
+this path.
+
+**Also a constraint:** the script runs synchronously on the paste path, so a slow hook is
+a slow paste. Anything that cannot finish in about a second must be fired off in the
+background rather than awaited.
+
+**State on this machine, recorded so nobody re-checks it:**
+
+| Thing | Where |
+| --- | --- |
+| The app | `/Applications/Coco Voice.app`, v0.9.4, running |
+| Models | `~/.cache/huggingface/hub/models--handy-computer--*` (32 GB cache) |
+| Cohere Transcribe Q5_K_M | **1.6 GB, already downloaded** |
+| Push-to-talk | `push_to_talk: true`, bound to **Ctrl** |
+| VAD | enabled (Silero) |
+| Post-processing | enabled, Apple Intelligence, prompt `coco_formatted` |
+| 81 models available | Parakeet, Whisper, Voxtral, Qwen3-ASR, Canary, Granite |
+
+**One caveat about their app's own models directory:** `~/Library/Application
+Support/com.cocoresearch.cocovoice/models/` is **empty**, and the models actually live in
+the HuggingFace cache. That is not a fault - but it means "is a model installed" cannot be
+answered by looking at the app's directory.
+
+**Alternatives considered and rejected:**
+
+- *Depend on their crate as a library.* It is a Tauri app crate; importing it drags in
+  Tauri and ~100 dependencies to get at one module.
+- *Reuse `transcribe-rs` / `transcribe-cpp` directly.* Duplicates the audio plumbing,
+  VAD, model management and post-processing that already work, to gain nothing.
+- *Ask them for a socket or headless mode.* Not needed: the script hook exists today.
 
 ## Dead ends - do not repeat these
 

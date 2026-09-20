@@ -13,9 +13,16 @@ The live board. Every PR updates this file.
   element.
   - Write against `AXUIElement::copy_attribute_value` and `AXValue::value`, and return
     `CFRetained`, not `Retained`. The dependency gotchas are in `docs/memory.md` D10.
+- [ ] **T15 - The voice hook** - a script that receives a transcript from CoCo Voice and
+  decides: command (hand to Jev) or dictation (type it). Unblocked by D11.
+  - Wires into `paste_method = "external_script"` + `external_script_path`. No change to
+    that repo is needed.
+  - **The hard part is the per-utterance decision**, not the plumbing: `external_script`
+    REPLACES typing, so choosing it means dictation stops working unless the hook types.
+  - Must return in about a second. Slower work goes to the background.
 - [ ] **T14 - Register the self-hosted runner for this repo** - `coco-mac-local` is already
   online for four other repos. Registering it here would let CI run the macOS path, which
-  an ubuntu runner cannot. See `docs/memory.md` D10 for why that matters.
+  an ubuntu runner cannot. See `docs/memory.md` D10.
 
 ## Next
 
@@ -39,7 +46,6 @@ The live board. Every PR updates this file.
 ## Blocked
 
 - [ ] **T12 - Tauri shell** - blocked on T4 (needs a real observation to display).
-- [ ] **T13 - Voice capture** - blocked on the STT engine decision (PRD open question 1).
 
 ## Decided not to do
 
