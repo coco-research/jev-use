@@ -1,24 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-label="Repo Standard to Playbook to macOS tools">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520">
   <rect width="1600" height="520" fill="#000000"/>
-  <defs>
-    <linearGradient id="dirB" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#C2A8FF"/>
-      <stop offset="50%" stop-color="#7FB8FF"/>
-      <stop offset="100%" stop-color="#A6F0CD"/>
-    </linearGradient>
-  </defs>
-  <!-- three quiet cards, rx=4, stroke #5b6169, fill #000 -->
-  <g font-family="DIN Alternate, D-DIN, Helvetica Neue, Helvetica, Arial, sans-serif" fill="#FFFFFF">
-    <rect x="120" y="180" width="360" height="160" rx="4" fill="#000000" stroke="#5b6169" stroke-width="1.5"/>
-    <text x="300" y="270" text-anchor="middle" font-size="28" font-weight="700">Repo Standard</text>
-    <rect x="620" y="180" width="360" height="160" rx="4" fill="#000000" stroke="#5b6169" stroke-width="1.5"/>
-    <text x="800" y="270" text-anchor="middle" font-size="28" font-weight="700">Playbook</text>
-    <rect x="1120" y="180" width="360" height="160" rx="4" fill="#000000" stroke="#5b6169" stroke-width="1.5"/>
-    <text x="1300" y="270" text-anchor="middle" font-size="28" font-weight="700">macOS tools</text>
-  </g>
-  <!-- connectors Direction B stroke -->
-  <g fill="none" stroke="url(#dirB)" stroke-width="2" stroke-linecap="round">
-    <path d="M 490,260 C 530,260 570,260 610,260"/>
-    <path d="M 990,260 C 1030,260 1070,260 1110,260"/>
-  </g>
+  <rect x="100" y="170" width="380" height="180" rx="4" fill="#000" stroke="#5b6169" stroke-width="2"/>
+  <rect x="610" y="170" width="380" height="180" rx="4" fill="#000" stroke="#5b6169" stroke-width="2"/>
+  <rect x="1120" y="170" width="380" height="180" rx="4" fill="#000" stroke="#5b6169" stroke-width="2"/>
+  <path d="M 490,260 L 600,260" stroke="#7FB8FF" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M 1000,260 L 1110,260" stroke="#A6F0CD" stroke-width="3" fill="none" stroke-linecap="round"/>
 </svg>

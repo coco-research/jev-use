@@ -1,32 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-label="jev-use — repo standard · playbook · pre-alpha">
-  <!-- CRAFT: pure #000 flat — no gradient, no grid, no glow, no shadow -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900">
   <rect width="1600" height="900" fill="#000000"/>
-
-  <defs>
-    <!-- Direction B right path: violet → sky → mint -->
-    <linearGradient id="dirB-right" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#C2A8FF"/>
-      <stop offset="50%" stop-color="#7FB8FF"/>
-      <stop offset="100%" stop-color="#A6F0CD"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Direction B facing two-arc mark (SI paths) — centered above lockup -->
-  <g transform="translate(800,280)" fill="none" stroke-width="6" stroke-linecap="round">
-    <!-- Left arc: #FFF, opens right -->
-    <path d="M -90,-70 C -90,-10 -90,50 -30,70" stroke="#FFFFFF"/>
-    <path d="M -60,-50 C -60,-5 -60,40 -20,52" stroke="#FFFFFF" stroke-opacity="0.85"/>
-    <!-- Right arc: Direction B gradient, opens left (facing) -->
-    <path d="M 90,-70 C 90,-10 90,50 30,70" stroke="url(#dirB-right)"/>
-    <path d="M 60,-50 C 60,-5 60,40 20,52" stroke="url(#dirB-right)" stroke-opacity="0.9"/>
+  <g fill="none" stroke-linecap="round">
+    <!-- L white -->
+    <path d="M 670,190 C 670,290 690,370 780,410" stroke="#FFFFFF" stroke-width="18"/>
+    <path d="M 715,225 C 715,300 730,360 785,385" stroke="#FFFFFF" stroke-width="12"/>
+    <!-- R Direction B as solid segments approximating gradient -->
+    <path d="M 930,190 C 930,230 925,260 910,290" stroke="#C2A8FF" stroke-width="18"/>
+    <path d="M 910,290 C 895,320 870,350 845,380" stroke="#7FB8FF" stroke-width="18"/>
+    <path d="M 845,380 C 835,395 825,405 820,410" stroke="#A6F0CD" stroke-width="18"/>
+    <path d="M 885,225 C 885,255 880,280 870,305" stroke="#C2A8FF" stroke-width="12"/>
+    <path d="M 870,305 C 860,330 845,355 830,375" stroke="#7FB8FF" stroke-width="12"/>
+    <path d="M 830,375 C 825,382 820,388 815,385" stroke="#A6F0CD" stroke-width="12"/>
   </g>
-
-  <!-- D-DIN / DIN Alternate lockup -->
-  <text x="800" y="470" text-anchor="middle"
-        font-family="DIN Alternate, D-DIN, DIN Condensed, Helvetica Neue, Helvetica, Arial, sans-serif"
-        font-size="96" font-weight="700" fill="#FFFFFF" letter-spacing="6">jev-use</text>
-
-  <text x="800" y="530" text-anchor="middle"
-        font-family="DIN Alternate, D-DIN, Helvetica Neue, Helvetica, Arial, sans-serif"
-        font-size="28" font-weight="400" fill="#8B9098" letter-spacing="4">repo standard · playbook · pre-alpha</text>
 </svg>
