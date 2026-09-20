@@ -39,6 +39,7 @@ that took an hour to diagnose. See `docs/memory.md`.
 ## 2. The PR contract
 
 - Every change is a **small PR**. No direct pushes to `main`.
+- After clone: `git config core.hooksPath .githooks` so `.githooks/pre-push` runs (see `CONTRIBUTING.md`). Bypass only with cause, documented in the PR.
 - **CI green before review.** Three jobs: `fmt + clippy`, `test`, `docs`.
 - **Evidence, not assertions.** Paste the command and its real output.
 - One concern per PR. If you touched two things, that is two PRs.
