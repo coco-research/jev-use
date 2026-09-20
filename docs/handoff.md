@@ -212,6 +212,7 @@ PR body and leave the file alone.
 
 ---
 
+
 ## 8. First three things to do
 
 1. `cargo test --workspace` and `jev-config doctor` - confirm the machine and the repo are
@@ -222,3 +223,21 @@ PR body and leave the file alone.
 3. Start **T4, the tree walk**, with **T5's parity harness** as its acceptance test. Write
    T5 first if you can: it is what turns "the walk looks right" into "the walk matches the
    reference exactly".
+
+---
+
+## 9. Co-writers - this repo has more than one
+
+**Another agent works in this repo too**, committing as `coco-research`. It owns the
+README's brand assets (`docs/readme/*.svg`, `*.png`, PRs #13 and #19 nearby) and has been
+iterating on the company mark and title treatment. It is not a stray file-dropper.
+
+Two consequences, both learned the hard way:
+
+- **Check `git log` before removing a file that looks unreferenced.** An earlier session
+  removed two images from `docs/readme/` as junk; the other agent's PR then re-added them,
+  because they were that agent's work in progress.
+- **Do not `git add -A`.** Stage the paths you actually changed, or another writer's
+  in-flight files ride into your commit and its PR body says something untrue.
+
+If you need to know who owns a file you did not write, `git log --format="%an %s" -- <path>`.
