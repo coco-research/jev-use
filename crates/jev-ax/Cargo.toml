@@ -19,7 +19,7 @@ workspace = true
 # for the known gap and the self-hosted runner that would close it.
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
-objc2-core-foundation = { version = "0.3", features = ["CFString", "CFArray"] }
+objc2-core-foundation = { version = "0.3", features = ["CFString", "CFArray", "CFNumber"] }
 objc2-application-services = { version = "0.3", features = ["HIServices"] }
 # default-features = false, then the minimum needed. Enabling AppKit's defaults pulls
 # in every framework binding and costs minutes of compile time for two types.
