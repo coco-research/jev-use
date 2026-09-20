@@ -70,29 +70,31 @@ not compile is a broken contract.
 
 ### D7 - The pre-push hook is the gate; CI is the backstop (2026-09-20)
 
-**Chosen:** `.githooks/pre-push` runs fmt, clippy, test, docs, a secret scan, and (later)
-the parity harness. CI runs the same checks on `ubuntu-latest`.
+**Chosen:** `.githooks/pre-push` is the gate. It runs fmt, clippy, test, docs, a secret
+scan, and (once it exists) the parity harness. The CI workflow is kept ready but its
+triggers are **manual**, because it cannot run.
 
-**Why, and this was found the hard way:** the very first push to this repo **failed in
-CI** with *"The job was not started because an Actions budget is preventing further use."*
+**Why, found the hard way:** the very first push to this repo failed in CI with
+*"The job was not started because an Actions budget is preventing further use."*
 
-- `coco-research/coco` and `coco-connect` run CI fine - they are **public**, and public
-  repos get unlimited Actions minutes.
-- This repo is **private**, and private repos share an account budget. **macOS runners
-  bill at 10x**, so a 2000-minute allowance is 200 minutes of macOS.
+**My first diagnosis was wrong, and the correction matters.** I assumed it was the
+macOS multiplier, since `coco-research/coco` and `coco-connect` run CI fine - but those
+are **public**, and public repos get unlimited Actions minutes. I switched the runner to
+`ubuntu-latest` at 1x, pushed again, and it **still failed with the same message.** So
+the budget is exhausted outright, not merely expensive. Do not re-litigate this by
+swapping runners; it will not help.
 
-**The deeper reason this is the right design, not just a workaround:** a GitHub-hosted
-macOS runner *cannot test the accessibility code at all.* It has no logged-in GUI
-session and no Accessibility permission, so every `AXUIElement` call fails there
-regardless of runner. The behaviour this project cares about is only testable on the
-machine.
+**The deeper reason this split is right design, not just a workaround:** a GitHub-hosted
+macOS runner *cannot test the accessibility code at all.* It has no logged-in GUI session
+and no Accessibility permission, so every `AXUIElement` call fails there regardless of
+runner. The behaviour this project cares about is only testable on this machine.
 
 **So the split is deliberate:**
 
 | Where | Tests | Cost |
 | --- | --- | --- |
 | Pre-push hook (local) | Everything, including AX against real apps | free, ~1.5 s warm |
-| CI (ubuntu) | Pure logic, types, fmt, lints, docs | 1x, not 10x |
+| CI (ubuntu, manual) | Pure logic, types, fmt, lints, docs | **currently refused - budget exhausted** |
 
 The crate is kept free of macOS-only dependencies **on purpose**, so the logic stays
 testable in CI. macOS-only code goes in a module gated by `cfg(target_os = "macos")` and

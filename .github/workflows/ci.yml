@@ -16,11 +16,29 @@ name: ci
 #
 # The crate is kept free of macOS-only dependencies precisely so this stays possible.
 
+# TRIGGERS ARE MANUAL ON PURPOSE.
+#
+# This account's Actions budget is exhausted, so every push fails with "The job was
+# not started because an Actions budget is preventing further use." That is true even
+# on ubuntu at 1x, so it is not a macOS-multiplier problem.
+#
+# A permanently-red CI is worse than no CI: it trains you to ignore the signal, and
+# then you miss it when it is real. So the gate lives in .githooks/pre-push - local,
+# free, 1.5 s, and able to test accessibility code that no GitHub runner can reach.
+#
+# TO RE-ENABLE on every push, uncomment these two triggers:
+#   push:
+#     branches: [main]
+#   pull_request:
+#     branches: [main]
+#
+# Three ways to get real CI back, cheapest first:
+#   1. Self-hosted runner on this Mac. Free, unlimited, and the only option that can
+#      run the accessibility tests, because it has a GUI session and the permission.
+#      Best technical answer for this project.
+#   2. Make the repo public. Public repos get unlimited Actions minutes.
+#   3. Buy minutes, or upgrade the plan. macOS bills at 10x ubuntu.
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
