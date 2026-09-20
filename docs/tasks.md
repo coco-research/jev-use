@@ -8,19 +8,17 @@ The live board. Every PR updates this file.
 
 ## Now
 
-- [ ] **T2 - App resolution and activation** (`ax/app.rs`) - app name to a running process,
-  and bring it forward. Blocks every real walk.
-  - `AXUIElement::new_application(pid)` is confirmed working by the T1 spike, and
-    `AXUIElement::pid()` exists. Activation needs `objc2-app-kit` (`NSRunningApplication`).
-
-## Next
-
 - [ ] **T3 - Typed attribute reads** (`ax/attrs.rs`) - `AXRole`, `AXTitle`, `AXDescription`,
   `AXValue`, `AXEnabled`, `AXPosition`, `AXSize`. One function each, tested against a live
   element.
   - Write against `AXUIElement::copy_attribute_value` and `AXValue::value`, and return
-    `CFRetained`, not `Retained`. Four gotchas are listed in `docs/architecture.md`
-    section 5 so they do not each cost a compile cycle.
+    `CFRetained`, not `Retained`. The dependency gotchas are in `docs/memory.md` D10.
+- [ ] **T14 - Register the self-hosted runner for this repo** - `coco-mac-local` is already
+  online for four other repos. Registering it here would let CI run the macOS path, which
+  an ubuntu runner cannot. See `docs/memory.md` D10 for why that matters.
+
+## Next
+
 - [ ] **T4 - The tree walk** (`ax/walk.rs`) - bounded DFS, seeding windows explicitly (R3),
   applying the addressability rule (R1), returning an `ElementTable`.
 - [ ] **T5 - The parity harness** - run the Python reference and the Rust port on the same
@@ -66,3 +64,16 @@ The live board. Every PR updates this file.
   - Bonus: PI-Desktop reproducibly returns `CannotComplete (-25204)`, which is exactly the
     hang rule R2 protects against.
   - Full evidence: `docs/memory.md` D8. **Spike crate deleted** - its value was the answer.
+
+- [x] **T2 - App resolution and activation** (`ax/app.rs`) - 10 new tests, 19 total.
+  - **Verified live:** 11 apps found, and the pid/name set is **byte-identical to the Python
+    reference** (`jev-use --apps`).
+  - Matching is exact-or-unique, never fuzzy. Several partial matches is an error listing
+    the candidates, not a pick (rule R10). Live proof: `"e"` matches 10 apps and errors;
+    `"co"` matches 2 and errors; `"a"` resolves to Terminal.
+  - **One deliberate divergence from Python**, recorded per rule R8: apps are sorted
+    alphabetically after the frontmost one, because `NSWorkspace` order is not stable
+    between calls and an unstable order makes resolution flaky. See `docs/memory.md` D9.
+  - **Two bugs found in the Python reference:** `activateWithOptions(1 << 1)` is a no-op on
+    macOS 14+ (the SDK deprecates that flag), and the driver calls it in two places.
+  - Live check: `cargo run --example list_apps` in `crates/jev-ax`.

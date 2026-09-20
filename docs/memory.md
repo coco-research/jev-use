@@ -183,6 +183,77 @@ against a real API instead of an assumed one. The fallback option (vendoring
 implementation arrives in T2/T3 with proper tests. Recorded here so the next session does
 not re-probe.
 
+
+### D9 - T2 done: app resolution, and one deliberate divergence from Python (2026-09-20)
+
+**Built:** `crates/jev-ax/src/app.rs` - a name to a running process, and bring it forward.
+10 new tests, 19 total, all green. Verified against the live machine: **11 apps, and the
+pid/name set is byte-identical to the Python reference.**
+
+**The divergence, recorded because rule R8 requires it.** The two implementations return
+the same apps but in a different order after the frontmost one:
+
+| | Order after frontmost |
+| --- | --- |
+| Python | whatever `NSWorkspace` hands back |
+| Rust | sorted alphabetically, case-insensitively |
+
+**Why the change:** `NSWorkspace` order is not guaranteed stable between calls, so the
+same screen could resolve a query to a different app on a different run. That is a bug
+that presents as flakiness, which is the worst kind to debug. Sorting makes resolution
+deterministic. The observable behaviour a caller depends on - which app a name resolves
+to, and whether it is ambiguous - is unchanged.
+
+**Two bugs found in the Python reference while porting:**
+
+1. **`activateWithOptions(1 << 1)` is a no-op.** That bit is
+   `NSApplicationActivateIgnoringOtherApps`, and the macOS SDK marks it
+   `#[deprecated = "ignoringOtherApps is deprecated in macOS 14 and will have no effect."]`
+   The driver calls it in two places (`ax.py:400`, `ax.py:431`), so it has been asking for
+   something the OS ignores while silently getting plain activation. It works - for a
+   different reason than the code says. The port passes `0` and says so.
+
+2. **The two `apikey.fan` keys share one wallet** (found during the usage work, recorded
+   here because it affects any balance reporting).
+
+**Matching is exact-or-unique, never fuzzy.** `match_app` tries an exact
+case-insensitive match, then a unique partial one. Several partial matches is an
+**error** listing the candidates, not a pick, because choosing silently is exactly the
+substitution rule R10 forbids. Live proof from this machine:
+
+```
+resolve("e")   -> 10 matches -> error, lists all ten
+resolve("co")  -> CoCo Hermes, ZCode -> error
+resolve("a")   -> Terminal -> resolves
+```
+
+### D10 - macOS code is cfg-gated, and that is a real CI gap (2026-09-20)
+
+The AX and AppKit dependencies are `[target.'cfg(target_os = "macos")'.dependencies]`, so
+an ubuntu runner never compiles them. That is deliberate: it keeps the pure logic
+(Rect, Element, Limits, fingerprint, `match_app`) testable in CI on any platform.
+
+**The cost, stated plainly:** CI cannot verify a single line of the macOS path. A typo in
+`running_apps` would pass CI and fail at runtime. The mitigation is the local pre-push
+hook, plus the `list_apps` example, which is the live check.
+
+**The real fix is available and not yet used:** a self-hosted runner is already online on
+this machine (`coco-mac-local`, registered for coco, coco-connect, coco-hermes and
+coco-m0). Registering it for this repo would let CI run the macOS path, because a
+self-hosted runner has a GUI session and Accessibility permission. That is a task, not a
+theory.
+
+**Dependency knowledge worth not rediscovering.** Each of these cost a compile cycle:
+
+1. `libc` is a required feature of `objc2-app-kit`. Without it,
+   `NSRunningApplication::processIdentifier` does not exist, and the error reads as
+   "no method named processIdentifier" - which looks like a wrong type, not a missing feature.
+2. `NSEnumerator` is required on `objc2-foundation` for **any** array iteration:
+   `iter()` and every `IntoIterator` impl are gated behind it.
+3. `objc2-core-foundation` has no `CFType` feature. `CFType` is always exported; the
+   features are per-type (`CFString`, `CFArray`).
+4. `default-features = false` on `objc2-app-kit` is worth keeping - the defaults pull in
+   every AppKit binding - but it means `libc` and `bitflags` must be named explicitly.
 ---
 
 ## Dead ends - do not repeat these
