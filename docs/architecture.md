@@ -1,7 +1,7 @@
 # Architecture
 
-**Status:** draft
-**Last updated:** 2026-09-19
+**Status:** approved 2026-09-20 (owner); kept current as pieces land
+**Last updated:** 2026-09-20 - jev-config added to the layout, settings and CI tier recorded
 
 ---
 
@@ -83,6 +83,9 @@ crates/
   jev-voice/              the hook CoCo Voice calls with each transcript. No AX, no
     src/lib.rs            model: `decide()` is pure, so CI tests it on any platform
     src/main.rs           act: type it, or hand it to Jev and exit
+  jev-config/             one settings file for everything, and the command that manages it
+    src/lib.rs            the schema: defaults, validation, precedence
+    src/main.rs           the menu, `show --sources`, `set`, and `doctor`
   emma-core/              (planned) the loop: observe -> choose -> execute
   jev/                    (planned) the model client, router, questions, validation
 apps/
@@ -147,10 +150,13 @@ See `docs/design.md`.
 
 | Store | Holds | Location |
 | --- | --- | --- |
+| Settings | everything the tools read: voice mode, trigger, driver, log, and the wallets the usage reporter probes | `~/.config/jev-use/settings.json`, owned by `crates/jev-config` |
 | Capability registry | name -> how to fulfil it | local file; format is an open question |
 | Task list | what is in flight | `docs/tasks.md` for now, DB later |
 | History | what was asked, what happened | local SQLite |
-| Settings | hotkey, voice, model | local file |
+
+**Precedence, stated once** (and printed per value by `jev-config show --sources`):
+built-in default < settings file < environment variable < command-line flag.
 
 **No secrets in this repo, ever.** The app reads keys from a local secret store that lives
 outside this repository, by path, and never copies them anywhere.

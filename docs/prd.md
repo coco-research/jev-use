@@ -1,8 +1,8 @@
 # PRD - jev-use
 
-**Status:** draft, awaiting owner approval
+**Status:** approved 2026-09-20 (owner); v0.1 in build
 **Owner:** Rijul
-**Last updated:** 2026-09-19
+**Last updated:** 2026-09-20 - open question 1 answered, two shipped surfaces added (§10)
 
 ---
 
@@ -128,8 +128,9 @@ not lie about latency.**
 | **v0.4** | Group D - web via CDP | Yes | No | No |
 | **v1.0** | Task list, history, the glass UI | - | - | - |
 
-v0.1 is a localhost page with a microphone. It ships in about a day and is genuinely
-useful on its own.
+v0.1 is a localhost page - **and no microphone of ours**: the audio layer belongs to CoCo
+Voice (§9, answer 1), so v0.1 is a page plus a hook that receives an already-transcribed
+string. That is a day of work, not a week, and it is useful on its own.
 
 ## 8. Success criteria
 
@@ -140,8 +141,32 @@ useful on its own.
 
 ## 9. Open questions
 
-1. Which speech-to-text engine - Apple's on-device, or `whisper-rs`?
-2. Push-to-talk key: Fn, or a modifier combination? Fn is not reliably capturable.
+1. ~~Which speech-to-text engine - Apple's on-device, or `whisper-rs`?~~ **ANSWERED
+   2026-09-20:** neither. CoCo Voice already ships a hotkey, a microphone, a VAD, a
+   speech-to-text model and post-processing, and hands the transcript to our script through
+   its `external_script` hook. Measured on this machine: 20.25 s of audio transcribed in
+   3.05 s (RTF 6.64x on the M1 GPU). This repo builds **no** audio layer - see D11 and D13.
+2. Push-to-talk key: Fn, or a modifier combination? **Moved out of this repo.** The key
+   belongs to CoCo Voice, which currently binds **Ctrl**. Known risk, recorded rather than
+   fixed: if Ctrl is still physically held when the paste chord is posted, the accelerator
+   can read as Ctrl+Cmd+V. Move the binding to Fn if it ever shows up.
 3. Does the app bundle a browser for Group D, or drive the existing Chrome?
 4. How does the user grant Accessibility permission without a signed build, given an
-   unsigned app loses that grant on every rebuild?
+   unsigned app loses that grant on every rebuild? **Partially answered:** the port's
+   accessibility tests need the grant per process, and CI now runs them on a self-hosted
+   runner for exactly that reason (§10).
+
+## 10. Surfaces that shipped, and are not in the phasing above
+
+Two pieces landed during the port and are part of the product now. They are recorded here
+because a PRD that lists only the future is a PRD that gets ignored:
+
+- **The voice hook** (`crates/jev-voice` + `scripts/voice-hook`) - the piece that turns a
+  transcript into either a command or typed dictation. `external_script` **replaces**
+  typing, so the default mode is the exact rule (a command needs the trigger word) rather
+  than the convenient one. Measured through the real wrapper under a GUI-like minimal
+  environment: 0.14-0.35 s per utterance.
+- **The settings surface** (`crates/jev-config`) - one file
+  (`~/.config/jev-use/settings.json`), one menu, one `doctor` that checks the whole chain.
+  This replaced configuration spread over a wrapper script and five environment variables,
+  which is what "it works if you know how" looked like.
