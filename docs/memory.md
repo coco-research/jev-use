@@ -369,6 +369,61 @@ missing feature.
 **Still open from this task:** `is_settable`'s true case cannot be proven from an element
 we control until T6 writes a value. The test says so instead of pretending otherwise.
 
+### D13 - T15 done: the voice hook, and the decision that is the hard part (2026-09-20)
+
+**The plumbing was trivial and the decision was not.** CoCo Voice's `external_script`
+hook runs one command with the transcript as `argv[1]` and **waits for it to exit**, so
+the hook is on the paste path and has about a second. Everything that costs time - a Jev
+run - is backgrounded as a detached copy of the hook; everything on the path is a string
+match.
+
+**Measured, real binary through the real wrapper:**
+
+| Path | Time |
+| --- | --- |
+| Decision only (`--dry-run`) | **8 ms** |
+| Dictation, including the paste | **0.24-0.33 s** |
+| Command hand-off (parent returns) | **6-15 ms** |
+
+**Proof, not assertion:** a scratch TextEdit document received
+`Hello from the voice hook: it typed this, didn't it?` byte-identical; the detached child
+ran a stub Jev for 2.0 s and logged `exit=Some(0)` after the parent had already returned.
+
+**The decision rule, and why `prefix` is the default.** `external_script` REPLACES typing,
+so the hook must decide command or dictation, and the two mistakes are not equal: a
+*command* typed into a field is visible and harmless, while *dictation* handed to Jev
+disappears into an agent that may act on it. So the default is the exact rule - without the
+trigger word ("emma"), everything is dictation - and the heuristic (`classify`: imperative
+verb, under 12 words, not a question) is opt-in. Its known false positive, "send it now",
+is recorded in a test rather than papered over.
+
+**Three details that would have cost an hour each:**
+
+1. **The child must not inherit the app's pipes.** CoCo Voice closes stdout/stderr as soon
+   as it moves on, so a backgrounded Jev run writing to them dies of SIGPIPE partway. The
+   child's stdout and stderr go to the log file instead.
+2. **`pbcopy` first, `osascript` second.** The keystroke has to come after the clipboard
+   write, or Cmd+V pastes the previous contents.
+3. **Exit 0 unconditionally.** A non-zero exit is reported by the app as a paste failure,
+   which is worse than anything the hook could have done. An unknown flag fails closed -
+   logged, nothing pasted - rather than pasting the flag as text.
+
+**Known side effects, stated rather than hidden:**
+
+- The hook overwrites the clipboard on the dictation path. That is what CoCo Voice's own
+  `ctrl_v` method does too, and it is why they have a `ClipboardHandling` setting.
+- Push-to-talk is bound to **Ctrl**, so if Ctrl is still physically held when the paste
+  chord is posted, the accelerator can read as Ctrl+Cmd+V. Unconfirmed: it needs a human
+  at the keyboard. Move the binding to Fn or Caps if it shows up.
+- On this machine `strip = "symbols"` in the release profile warns: `rust-objcopy` cannot
+  find `libLLVM.dylib` in the toolchain. The build is fine; the binary is just unstripped.
+
+**Installed but not switched on:** `~/.local/bin/jev-voice-hook` exists and
+`scripts/voice-hook` is ready to be the `external_script_path`, but the app still runs
+`paste_method: ctrl_v`. Flipping it is a one-way change to how typing works on this
+machine, so it is the owner's call, not an agent's edit.
+
+
 ## Dead ends - do not repeat these
 
 ### X1 - Do not try to read a browser page through the accessibility tree (2026-09-19)

@@ -8,13 +8,6 @@ The live board. Every PR updates this file.
 
 ## Now
 
-- [ ] **T15 - The voice hook** - a script that receives a transcript from CoCo Voice and
-  decides: command (hand to Jev) or dictation (type it). Unblocked by D11.
-  - Wires into `paste_method = "external_script"` + `external_script_path`. No change to
-    that repo is needed.
-  - **The hard part is the per-utterance decision**, not the plumbing: `external_script`
-    REPLACES typing, so choosing it means dictation stops working unless the hook types.
-  - Must return in about a second. Slower work goes to the background.
 - [ ] **T14 - Register the self-hosted runner for this repo** - `coco-mac-local` is already
   online for four other repos. Registering it here would let CI run the macOS path, which
   an ubuntu runner cannot. See `docs/memory.md` D10.
@@ -79,7 +72,7 @@ The live board. Every PR updates this file.
     macOS 14+ (the SDK deprecates that flag), and the driver calls it in two places.
   - Live check: `cargo run --example list_apps` in `crates/jev-ax`.
 
-- [x] **T3 - Typed attribute reads** (`ax/attrs.rs`) - 13 new tests, 32 total.
+- [x] **T3 - Typed attribute reads** (`ax/attrs.rs`) - 13 new tests, 32 total. **PR #9.**
   - One reader each for role, title, description, value, placeholder, enabled, position,
     size, rect, actions and settability, over a shared `raw` and `as_text` pair. The walk
     now has everything it needs to fill an element; it does not have to touch FFI.
@@ -97,3 +90,35 @@ The live board. Every PR updates this file.
   - `is_settable`'s positive case needs a writable attribute on an element we control,
     which is T6's write path. Only the false case is asserted here, and that is stated in
     the test.
+
+- [x] **T15 - The voice hook** - `crates/jev-voice` + `scripts/voice-hook`. 15 new tests,
+  47 total.
+  - `decide()` is pure: no I/O, no spawning, no clock, so CI tests the decision on any
+    platform while the acting half stays on macOS.
+  - **Mode `prefix` is the default, and that is a safety decision.** A command happens
+    only when the utterance opens with the trigger ("emma"), so prose cannot become a
+    command by accident. `classify` (verb heuristic, opt-in) exists for people who want
+    to skip the trigger, and its known false positive - "send it now" - is a test, not a
+    claim that the rule is exact. The asymmetry is why: a command typed into a field is
+    harmless and visible, while dictation handed to Jev disappears into an agent.
+  - **Measured, all on the real binary through the real wrapper:**
+
+    | Path | Time |
+    | --- | --- |
+    | Decision only (`--dry-run`) | **8 ms** |
+    | Dictation, including the paste | **0.24-0.33 s** |
+    | Command hand-off (parent returns) | **6-15 ms** |
+
+  - Dictation is proven end to end, not asserted: a scratch TextEdit document received
+    `Hello from the voice hook: it typed this, didn't it?` **byte-identical**, and the
+    document was closed without saving.
+  - A command is backgrounded as a detached copy of the hook, so the app never waits for
+    a Jev run. Proven with a stub Jev: parent back in 15 ms, child finished 2.0 s later
+    and logged its exit code.
+  - **Always exits 0**, including on a missing transcript, a bad `--mode`, and an unknown
+    flag (which fails closed rather than pasting the flag as text). A non-zero exit is
+    reported by CoCo Voice as a paste failure.
+  - **Installed:** binary at `~/.local/bin/jev-voice-hook`. **Not switched on:** the app
+    still has `paste_method: ctrl_v`. Turning it on replaces typing, so it is the owner's
+    call - and the hook has to be live before dictation depends on it. See `docs/memory.md`
+    D13.
