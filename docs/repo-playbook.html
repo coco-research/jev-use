@@ -17,12 +17,12 @@
     2. scripts/standard-sync --check fails when any repository's copy differs from the
        canonical one. `--write` redeploys every copy.
 
-  Revision 3 - 2026-09-20. Change log in section 8.
+  Revision 4 - 2026-09-20. Change log in section 8.
 -->
-<meta name="repo-standard-revision" content="3">
+<meta name="repo-standard-revision" content="4">
 <meta name="repo-standard-date" content="2026-09-20">
 <meta name="repo-standard-canonical" content="products/jev-use/docs/repo-playbook.html">
-<meta name="repo-standard-checks" content="README.md; AGENTS.md; LICENSE; .githooks/pre-push; .githooks wired; no credentials in tracked files; no machine-specific paths; CI workflow; PR template; CONTRIBUTING.md; docs/rules.md; tests; docs/prd.md; docs/architecture.md; docs/design.md; docs/tasks.md; docs/memory.md; .metagpt/STATE.md; .metagpt/GATE.json; the six documents are not stubs">
+<meta name="repo-standard-checks" content="README.md; AGENTS.md; LICENSE; .githooks/pre-push; .githooks wired; no credentials in tracked files; credentials outside test/evidence; no machine-specific paths; CI workflow; PR template; CONTRIBUTING.md; docs/rules.md; tests; docs/prd.md; docs/architecture.md; docs/design.md; docs/tasks.md; docs/memory.md; .metagpt/STATE.md; .metagpt/GATE.json; the six documents are not stubs">
 <style>
 :root{
   --blue:#0A6CFF; --blue-deep:#0550C8; --soft:#E8F1FF;
@@ -227,7 +227,7 @@ footer{color:var(--mut);font-size:13.5px;text-align:center;padding:6px 0 16px}
 <!-- ─────────────────────────────────────────────────────────────────────── -->
 <div class="card">
   <h2><span class="n">2</span>What the checker verifies</h2>
-  <p class="sub">Nineteen checks in three tiers, run by <code>scripts/repo-check</code>. This list
+  <p class="sub">Twenty-one checks in three tiers, run by <code>scripts/repo-check</code>. This list
   is a contract: the tool compares it against the checks it actually ran, and fails on any
   mismatch.</p>
   <div class="scroll">
@@ -239,6 +239,7 @@ footer{color:var(--mut);font-size:13.5px;text-align:center;padding:6px 0 16px}
       <tr><td><span class="tag req">1 required</span></td><td><code>.githooks/pre-push</code></td><td>Present and executable.</td></tr>
       <tr><td><span class="tag req">1 required</span></td><td><code>.githooks wired</code></td><td><code>core.hooksPath</code> points at it. A hook nobody installed is decoration.</td></tr>
       <tr><td><span class="tag req">1 required</span></td><td>no credentials in tracked files</td><td>Every tracked file is scanned for key shapes.</td></tr>
+      <tr><td><span class="tag exp">2 expected</span></td><td>credentials outside test/evidence</td><td>Key shapes in fixtures, tests and logs. Expected in that context; each one must be an obvious placeholder.</td></tr>
       <tr><td><span class="tag exp">2 expected</span></td><td>no machine-specific paths</td><td>No hard-coded home directories in shipped code.</td></tr>
       <tr><td><span class="tag exp">2 expected</span></td><td>CI workflow</td><td>The backstop for anyone who clones without the hook.</td></tr>
       <tr><td><span class="tag exp">2 expected</span></td><td>PR template</td><td>How "evidence, not assertions" becomes the default.</td></tr>
@@ -406,11 +407,19 @@ footer{color:var(--mut);font-size:13.5px;text-align:center;padding:6px 0 16px}
       <code>standard-sync</code> tool and the canonical-copy meta tag, because twenty copies of a
       standard are not a standard. Section 0 is new: the five steps an agent follows on a repo it
       has never seen.</li>
+    <li><b>Revision 4 (2026-09-20)</b> — two defects in the standard itself, both found by
+      running it rather than reading it. Rule 12 says this file declares the checks it
+      documents, and the prose said <i>nineteen</i> while the meta tag declared twenty: nothing
+      compared the two, so the count had drifted. And <code>repo-check</code> named the
+      <code>credentials outside test/evidence</code> check only when it found something, so the
+      self-check read that name as undocumented and failed any repo holding a single
+      fixture-shaped key. The check now names itself either way, it is declared, and the count
+      is correct.</li>
   </ul>
 </div>
 
 <footer>
-  Revision 3 · 2026-09-20 · the standard every repository carries ·
+  Revision 4 · 2026-09-20 · the standard every repository carries ·
   verified by <span class="mono">scripts/repo-check</span> ·
   kept identical by <span class="mono">scripts/standard-sync</span>
 </footer>
