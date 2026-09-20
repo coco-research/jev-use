@@ -1,0 +1,17 @@
+[package]
+name = "jev-voice"
+description = "The voice hook: decides whether a spoken utterance is a command for Jev or dictation to type."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "jev-voice-hook"
+path = "src/main.rs"
+
+[dependencies]

@@ -29,6 +29,15 @@
 Five subsystems. Each independently testable. Only the last one is what this repo is
 currently building.
 
+**The `trigger + capture` box is not built here.** CoCo Voice already owns the hotkey, the
+microphone, the VAD and the speech-to-text, and it hands us the transcript through its
+`external_script` hook (D11). What this repo adds there is the decision that follows the
+transcript - command or dictation - in `crates/jev-voice` (D13).
+
+**The `intent` box is not the voice hook.** The hook decides *whether* something is a
+goal; the intent layer decides *which capability* fulfils it. Different questions, and
+the hook has about a second to answer its one.
+
 ## 2. The layer boundary that matters
 
 `crates/jev-ax` has exactly two jobs:
@@ -67,14 +76,19 @@ bug, caught mechanically.
 crates/
   jev-ax/                 the port target. macOS Accessibility only.
     src/lib.rs            Element, Kind, Rect, Limits, ElementTable, fingerprint
-    src/attrs.rs          (planned) typed AX attribute reads
+    src/attrs.rs          typed AX attribute reads, over one `raw` that keeps the code
     src/walk.rs           (planned) tree walk with caps and the on-screen test
     src/execute.rs        (planned) AXPress, AXValue write, keystroke fallback
-    src/app.rs            (planned) app resolution and activation
+    src/app.rs            app resolution and activation
+  jev-voice/              the hook CoCo Voice calls with each transcript. No AX, no
+    src/lib.rs            model: `decide()` is pure, so CI tests it on any platform
+    src/main.rs           act: type it, or hand it to Jev and exit
   emma-core/              (planned) the loop: observe -> choose -> execute
   jev/                    (planned) the model client, router, questions, validation
 apps/
   desktop/                (planned) Tauri shell, glass UI
+scripts/
+  voice-hook              the file `external_script_path` points at; the whole config
 ```
 
 ## 5. Dependencies

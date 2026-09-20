@@ -1,0 +1,48 @@
+#!/bin/sh
+# The voice hook. This is the file to point CoCo Voice at:
+#
+#   settings_store.json:
+#     "paste_method": "external_script",
+#     "external_script_path": "/Users/<you>/code/jev-use/scripts/voice-hook"
+#
+# READ THIS FIRST: `external_script` REPLACES typing. The moment it is switched on,
+# dictation stops working unless this hook types the text - which it does, by pressing
+# Cmd+V. If the hook is missing or broken, dictation is broken with it. There is no
+# partial setting.
+#
+# CoCo Voice runs this with the transcript as **argv[1]** and waits for it to exit, so:
+#   - `exec` keeps the process count at one; the app waits on the real hook
+#   - "$@" forwards the transcript as a single argument: no word splitting, no globbing,
+#     no shell parsing of what you said
+#   - the hook always exits 0, because a non-zero exit is reported as a paste failure
+#
+# CONFIGURATION - the flags below are the whole config.
+#
+#   --mode prefix      a command only when the utterance opens with the trigger word.
+#                      Exact, so it cannot eat dictation. DEFAULT.
+#   --mode classify    the trigger, or an imperative opening verb ("open", "click",
+#                      "search") under 12 words. Convenient, and a heuristic:
+#                      "send it now" is read as a command.
+#   --mode dictation   never hand anything to Jev. Everything is typed.
+#   --mode command     hand everything to Jev.
+#
+#   --trigger emma     the wake word, matched case-insensitively and ignoring the
+#                      punctuation speech-to-text adds after it ("Emma," / "EMMA!").
+#                      "Emma" is also the name of the voice front end in docs/prd.md.
+#
+#   --jev-use PATH     what a command is handed to. The Python reference for now: the
+#                      Rust port has no CLI yet (T7).
+#
+# Try it without speaking, safely - this decides and prints, and touches nothing:
+#
+#   scripts/voice-hook --dry-run "Emma, open a new tab"
+#   scripts/voice-hook --dry-run "Dear team, following up on the invoice"
+#
+# The log is ~/Library/Logs/jev-voice-hook.log: one line per utterance, and one per
+# backgrounded Jev run with its exit code.
+
+exec "$HOME/.local/bin/jev-voice-hook" \
+  --mode prefix \
+  --trigger emma \
+  --jev-use "$HOME/.local/bin/jev-use" \
+  "$@"
