@@ -13,6 +13,22 @@ The canonical copy is this repo's own (`docs/repo-playbook.html`); every other r
 a copy of it. The revision and canonical path are declared in the file's meta tags, so a
 copy can say what it is without being told.
 
+IT REFUSES TO DEPLOY a playbook that declares no revision. A file that cannot say what it is
+cannot be verified, and deploying one is how a stale checkout overwrites every good copy.
+Measured: this repo's own feature branches carry a pre-standard playbook with no meta tags at
+all, so the wrong-checkout deploy is a real failure mode, not a hypothetical.
+
+IT DEPLOYS INTO A DIRTY REPO, AND SAYS SO. A repository with work in flight gets the new copy
+and the report names it, because being quiet about that is how a diff stops meaning what it
+says. `--skip-dirty` inverts it: those repositories keep their current copy and are reported.
+The default is deliberate and it was measured - 20 of the 24 repositories under products/ had
+uncommitted work when this was written, so skipping by default would leave the standard stale
+in almost every repo it exists to serve.
+
+WHAT IT WILL NOT TOUCH: a directory under products/ that is not a git repository. Reported,
+never written to. A playbook dropped into a non-repo is a copy that nothing updates and
+nothing checks, which is worse than no copy at all.
+
 Exit codes: 0 all copies match, 1 drift or a missing copy, 2 the check itself failed.
 """
 from __future__ import annotations
@@ -21,7 +37,9 @@ import argparse
 import filecmp
 import hashlib
 import os
+import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -56,12 +74,17 @@ def is_repo(path: Path) -> bool:
 
 
 def targets(root: Path) -> list[Path]:
-    """Every repository-shaped directory under products/.
+    """Every repository under products/ - which is all this tool is allowed to touch.
 
     Symlinks are skipped: a symlink to another product is the same directory under two
     names, and deploying through both would write the same file twice while reporting
     two successes. Worktrees are included - an agent working in one still needs the
     playbook.
+
+    `is_repo` is the filter, and it is not optional. Without it this wrote into any
+    directory that happened to sit under products/, including an empty one. Measured
+    before the fix: 31 targets, 24 of them repositories, and a copy sitting in a
+    directory with no commits and no files at all.
     """
     out: list[Path] = []
     if not root.is_dir():
@@ -71,8 +94,75 @@ def targets(root: Path) -> list[Path]:
             continue
         if entry.is_symlink() or not entry.is_dir():
             continue
+        if not is_repo(entry):
+            continue
         out.append(entry)
     return out
+
+
+def non_repo_dirs(root: Path) -> list[Path]:
+    """Directories under products/ that are not repositories, so never targets.
+
+    Reported rather than ignored. One of these carrying a playbook is a copy that nothing
+    updates and nothing checks, and the fix is either `git init` or removing the copy.
+    This tool does neither; it only says so.
+
+    Also the reason `dirty_paths` is only ever called on a repository: products/ sits
+    inside another git repo, so `git -C <a non-repo>` answers with the OUTER repo's
+    changes, which would be a misleading reason to skip something.
+    """
+    if not root.is_dir():
+        return []
+    out: list[Path] = []
+    for entry in sorted(root.iterdir()):
+        if entry.name.startswith(".") or entry.name in SKIP_NAMES:
+            continue
+        if entry.is_symlink() or not entry.is_dir():
+            continue
+        if not is_repo(entry):
+            out.append(entry)
+    return out
+
+
+REVISION_META = re.compile(r'<meta\s+name="repo-standard-revision"\s+content="([^"]+)"')
+
+
+def declared_revision(path: Path) -> str | None:
+    """The revision the playbook declares, or None when it declares none."""
+    body = path.read_text(encoding="utf-8", errors="replace")
+    m = REVISION_META.search(body)
+    return m.group(1) if m else None
+
+
+def dirty_paths(repo: Path) -> list[str]:
+    """What this repo has changed or added, ignoring the playbook itself.
+
+    The playbook is excluded on purpose: its being modified is the *expected* state after a
+    deploy, so counting it would make every repo permanently dirty and stop the tool.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "status", "--porcelain"],
+            capture_output=True, text=True, timeout=30, check=False,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        # No git, or git refused. Not knowing is not a reason to overwrite somebody's work,
+        # so the caller treats an empty list as "nothing found" only for a clean answer -
+        # this branch returns a marker the caller can see.
+        return ["<git status unavailable>"]
+
+    out_paths: list[str] = []
+    for line in out.splitlines():
+        if len(line) < 4:
+            continue
+        entry = line[3:].strip().strip('"')
+        # A rename reads "old -> new"; the path that matters is the new one.
+        if " -> " in entry:
+            entry = entry.split(" -> ", 1)[1].strip().strip('"')
+        if not entry or entry == PLAYBOOK:
+            continue
+        out_paths.append(entry)
+    return out_paths
 
 
 def check(root: Path, verbose: bool) -> int:
@@ -82,8 +172,9 @@ def check(root: Path, verbose: bool) -> int:
         return 2
 
     want = digest(source)
+    rev = declared_revision(source) or "undeclared"
     print(f"{BOLD}standard-sync{OFF}  canonical {DIM}{source}{OFF}")
-    print(f"  revision {want}  {DIM}sha256[:16]{OFF}")
+    print(f"  revision {rev}  {DIM}content {want} sha256[:16]{OFF}")
 
     missing: list[Path] = []
     drifted: list[Path] = []
@@ -103,10 +194,21 @@ def check(root: Path, verbose: bool) -> int:
     total = len(targets(root))
     print(f"  {same}/{total} repo(s) carry the current playbook")
 
+    idle = non_repo_dirs(root)
+    if idle:
+        print(f"  {DIM}{len(idle)} directory(ies) skipped: not a repository{OFF}")
+        for r in idle:
+            note = (f" {YELLOW}carries a copy nothing updates{OFF}"
+                    if (r / PLAYBOOK).exists() else "")
+            print(f"    {DIM}{r.name}{OFF}{note}")
+
     for r in missing:
         print(f"  {YELLOW}missing{OFF} {r.name}/{PLAYBOOK}")
     for r in drifted:
-        print(f"  {RED}drifted{OFF} {r.name}/{PLAYBOOK} {DIM}run --write{OFF}")
+        busy = dirty_paths(r)
+        why = (f" {DIM}has uncommitted work - commit or stash, then re-run{OFF}"
+               if busy else f" {DIM}run --write{OFF}")
+        print(f"  {RED}drifted{OFF} {r.name}/{PLAYBOOK}{why}")
 
     if missing or drifted:
         print(f"\n  {len(missing)} missing, {len(drifted)} drifted"
@@ -116,17 +218,34 @@ def check(root: Path, verbose: bool) -> int:
     return 0
 
 
-def write(root: Path) -> int:
+def write(root: Path, skip_dirty: bool) -> int:
     source = canonical(Path(__file__).resolve().parent.parent)
     if not source.exists():
         print(f"standard-sync: canonical playbook missing: {source}", file=sys.stderr)
         return 2
 
+    rev = declared_revision(source)
+    if rev is None:
+        # A playbook that cannot say what it is cannot be verified, and deploying one is how
+        # a stale checkout overwrites every good copy. Measured, not hypothetical: a feature
+        # branch of this repo carries a playbook with no meta tags at all.
+        print(f"standard-sync: refusing to deploy {source}", file=sys.stderr)
+        print("  It declares no repo-standard-revision meta tag, so it cannot be verified.",
+              file=sys.stderr)
+        print("  That usually means this checkout is not the canonical one.", file=sys.stderr)
+        return 2
+
     want = digest(source)
     changed = 0
+    skipped: list[tuple[Path, list[str]]] = []
+    also_busy: list[tuple[Path, list[str]]] = []
     for repo in targets(root):
         copy = repo / PLAYBOOK
         if copy.exists() and filecmp.cmp(source, copy, shallow=False):
+            continue
+        busy = dirty_paths(repo)
+        if skip_dirty and busy:
+            skipped.append((repo, busy))
             continue
         copy.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source, copy)
@@ -134,9 +253,21 @@ def write(root: Path) -> int:
         copy.chmod(0o644)
         changed += 1
         print(f"  wrote {repo.name}/{PLAYBOOK}")
+        if busy:
+            also_busy.append((repo, busy))
 
     total = len(targets(root))
-    print(f"\n{changed} file(s) written across {total} repo(s); canonical revision {want}")
+    print(f"\n{changed} file(s) written across {total} repo(s); revision {rev} {want}")
+    for repo, busy in also_busy:
+        shown = ", ".join(busy[:2])
+        more = f" (+{len(busy) - 2} more)" if len(busy) > 2 else ""
+        print(f"  {YELLOW}note{OFF} {repo.name} {DIM}had uncommitted work: {shown}{more}{OFF}")
+    for repo, busy in skipped:
+        shown = ", ".join(busy[:3])
+        more = f" (+{len(busy) - 3} more)" if len(busy) > 3 else ""
+        print(f"  {YELLOW}skipped{OFF} {repo.name} {DIM}uncommitted: {shown}{more}{OFF}")
+    if skipped:
+        print(f"  {len(skipped)} repo(s) left on their current copy: commit or stash, then re-run.")
     print("Re-run with --check to verify. If a repo tracks the file, commit it there.")
     return 0
 
@@ -144,6 +275,8 @@ def write(root: Path) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Keep the playbook identical in every repo.")
     ap.add_argument("--write", action="store_true", help="redeploy the canonical copy")
+    ap.add_argument("--skip-dirty", action="store_true",
+                    help="leave repos with uncommitted work alone instead of writing into them")
     ap.add_argument("--check", action="store_true", help="only report (the default)")
     ap.add_argument("--products", type=Path, default=PRODUCTS,
                     help=f"where the repos are (default: {PRODUCTS})")
@@ -155,7 +288,7 @@ def main() -> int:
         return 2
 
     if args.write:
-        code = write(args.products)
+        code = write(args.products, args.skip_dirty)
         return code if code else check(args.products, args.verbose)
     return check(args.products, args.verbose)
 
