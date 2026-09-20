@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+"""standard-sync - keep every repository carrying the same playbook.
+
+A standard that exists in twenty folders as twenty slightly different texts is not a
+standard, it is twenty opinions. So the copies are mechanical:
+
+    scripts/standard-sync --check     compare every repo's copy to the canonical one
+    scripts/standard-sync --write     redeploy the canonical copy into every repo
+    scripts/standard-sync             same as --check
+
+WHAT IT DEPLOYS: `docs/repo-playbook.html`, byte-identical everywhere. Nothing else.
+The canonical copy is this repo's own (`docs/repo-playbook.html`); every other repo gets
+a copy of it. The revision and canonical path are declared in the file's meta tags, so a
+copy can say what it is without being told.
+
+Exit codes: 0 all copies match, 1 drift or a missing copy, 2 the check itself failed.
+"""
+from __future__ import annotations
+
+import argparse
+import filecmp
+import hashlib
+import os
+import shutil
+import sys
+from pathlib import Path
+
+# Where the repositories live. Overridable so this is usable from a checkout elsewhere.
+PRODUCTS = Path(
+    os.environ.get("COCO_PRODUCTS")
+    or Path.home() / "Rijul Kalra" / "Coco Research" / "products"
+)
+
+PLAYBOOK = "docs/repo-playbook.html"
+
+GREEN, RED, YELLOW, DIM, BOLD, OFF = (
+    "\033[32m", "\033[31m", "\033[33m", "\033[2m", "\033[1m", "\033[0m",
+)
+
+# Directories that are never a repository to deploy into.
+SKIP_NAMES = {".git", "node_modules", "target", "dist", "build", ".venv", "__pycache__"}
+
+
+def canonical(repo: Path) -> Path:
+    """This script lives in the canonical repo, so the file beside it is the source."""
+    return repo / PLAYBOOK
+
+
+def digest(p: Path) -> str:
+    return hashlib.sha256(p.read_bytes()).hexdigest()[:16]
+
+
+def is_repo(path: Path) -> bool:
+    """A git repo, or a worktree of one. Both are places an agent works."""
+    return (path / ".git").exists()
+
+
+def targets(root: Path) -> list[Path]:
+    """Every repository-shaped directory under products/.
+
+    Symlinks are skipped: a symlink to another product is the same directory under two
+    names, and deploying through both would write the same file twice while reporting
+    two successes. Worktrees are included - an agent working in one still needs the
+    playbook.
+    """
+    out: list[Path] = []
+    if not root.is_dir():
+        return out
+    for entry in sorted(root.iterdir()):
+        if entry.name.startswith(".") or entry.name in SKIP_NAMES:
+            continue
+        if entry.is_symlink() or not entry.is_dir():
+            continue
+        out.append(entry)
+    return out
+
+
+def check(root: Path, verbose: bool) -> int:
+    source = canonical(Path(__file__).resolve().parent.parent)
+    if not source.exists():
+        print(f"standard-sync: canonical playbook missing: {source}", file=sys.stderr)
+        return 2
+
+    want = digest(source)
+    print(f"{BOLD}standard-sync{OFF}  canonical {DIM}{source}{OFF}")
+    print(f"  revision {want}  {DIM}sha256[:16]{OFF}")
+
+    missing: list[Path] = []
+    drifted: list[Path] = []
+    same = 0
+
+    for repo in targets(root):
+        copy = repo / PLAYBOOK
+        if not copy.exists():
+            missing.append(repo)
+        elif not filecmp.cmp(source, copy, shallow=False):
+            drifted.append(repo)
+        else:
+            same += 1
+        if verbose and copy.exists() and repo in drifted:
+            print(f"    {repo.name}: {digest(copy)} != {want}")
+
+    total = len(targets(root))
+    print(f"  {same}/{total} repo(s) carry the current playbook")
+
+    for r in missing:
+        print(f"  {YELLOW}missing{OFF} {r.name}/{PLAYBOOK}")
+    for r in drifted:
+        print(f"  {RED}drifted{OFF} {r.name}/{PLAYBOOK} {DIM}run --write{OFF}")
+
+    if missing or drifted:
+        print(f"\n  {len(missing)} missing, {len(drifted)} drifted"
+              f" — run: scripts/standard-sync --write")
+        return 1
+    print(f"\n  {GREEN}every copy is identical to the canonical one{OFF}")
+    return 0
+
+
+def write(root: Path) -> int:
+    source = canonical(Path(__file__).resolve().parent.parent)
+    if not source.exists():
+        print(f"standard-sync: canonical playbook missing: {source}", file=sys.stderr)
+        return 2
+
+    want = digest(source)
+    changed = 0
+    for repo in targets(root):
+        copy = repo / PLAYBOOK
+        if copy.exists() and filecmp.cmp(source, copy, shallow=False):
+            continue
+        copy.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, copy)
+        # Readable by everyone: this is documentation, not a secret.
+        copy.chmod(0o644)
+        changed += 1
+        print(f"  wrote {repo.name}/{PLAYBOOK}")
+
+    total = len(targets(root))
+    print(f"\n{changed} file(s) written across {total} repo(s); canonical revision {want}")
+    print("Re-run with --check to verify. If a repo tracks the file, commit it there.")
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Keep the playbook identical in every repo.")
+    ap.add_argument("--write", action="store_true", help="redeploy the canonical copy")
+    ap.add_argument("--check", action="store_true", help="only report (the default)")
+    ap.add_argument("--products", type=Path, default=PRODUCTS,
+                    help=f"where the repos are (default: {PRODUCTS})")
+    ap.add_argument("--verbose", action="store_true")
+    args = ap.parse_args()
+
+    if not args.products.is_dir():
+        print(f"standard-sync: not a directory: {args.products}", file=sys.stderr)
+        return 2
+
+    if args.write:
+        code = write(args.products)
+        return code if code else check(args.products, args.verbose)
+    return check(args.products, args.verbose)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

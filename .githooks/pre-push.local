@@ -24,10 +24,32 @@ CHECK="$ROOT/scripts/repo-check"
   exit 0
 }
 
-if python3 "$CHECK" --repo "$ROOT" >/tmp/repo-check.out 2>&1; then
-  printf '  ok    repo-check            credentials and machine paths clean\n'
-  exit 0
+if ! python3 "$CHECK" --repo "$ROOT" >/tmp/repo-check.out 2>&1; then
+  printf '  FAIL  repo-check\n'
+  sed 's/^/        /' /tmp/repo-check.out | tail -25
+  printf '\n  Fix the finding above. If it is a credential: remove it AND rotate it,\n'
+  printf '  then say so in the PR body - assume it is already public.\n'
+  exit 1
 fi
+printf '  ok    repo-check            credentials, machine paths, documents, the standard\n'
+
+# ── the standard is deployed, and identical everywhere ─────────────────────
+# This repo authors docs/repo-playbook.html. Every other repo carries a copy of it, and
+# twenty copies that differ would not be a standard. Run from the canonical repo, because
+# it is the one place that can see all of them.
+SYNC="$ROOT/scripts/standard-sync"
+if [ -x "$SYNC" ]; then
+  if python3 "$SYNC" --check >/tmp/standard-sync.out 2>&1; then
+    printf '  ok    standard deployed      every copy identical to this one\n'
+  else
+    printf '  warn  standard deployed\n'
+    grep -E 'missing|drifted|repo\(s\)' /tmp/standard-sync.out | sed 's/^/        /' | head -8
+    printf '        run: scripts/standard-sync --write\n'
+  fi
+else
+  printf '  skip  standard deployed      (scripts/standard-sync not executable)\n'
+fi
+exit 0
 
 # A failure here means a required-tier finding: credentials in tracked files, a missing
 # required file, or the hooks unwired. Show what it was.

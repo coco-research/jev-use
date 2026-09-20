@@ -9,9 +9,15 @@ Rules for any agent working in this repo. They are not suggestions.
 ## 0. Before this file: the standard
 
 `docs/repo-playbook.html` is the **source of truth for the standard itself** — the standing
-rules, the gate, and the documents every repo carries. `scripts/repo-check` is the tool that
-enforces it, and the playbook declares the checks that tool runs, so the two cannot drift
-apart unnoticed.
+rules, the gate, and the documents every repo carries. **This repo holds the canonical copy**;
+every other repository under `products/` carries a byte-identical copy of it.
+
+Two tools keep that honest, and both run in the gate:
+
+- `scripts/standard-sync --check` — proves every copy still matches this one (`--write` repairs).
+  Edit the canonical and redeploy; editing a copy anywhere else is a bug.
+- `scripts/repo-check` — fails when the playbook's declared check list and the checks the tool
+  actually runs disagree.
 
 Run it before you claim anything is done:
 
