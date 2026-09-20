@@ -862,6 +862,84 @@ same array layout the app builds. Two compactions had shifted the indices.
 `Rect` holds `f64`, so `Element` cannot derive `Eq`. It derives `PartialEq` only. Caught
 by CI on the first commit, which is the system working.
 
+### X6 - A small local intent model is not the safety layer (2026-09-20)
+
+**What we tried:** Cactus Needle 3, a 121M-parameter tool-calling model quantised to 8-29 MB,
+run locally as the router in front of Jev. Its pitch fits our shape exactly: text plus tool
+descriptions in, typed JSON calls out, offline, with a calibrated confidence score the docs
+say to route on (act above 0.7, confirm between, refuse on empty). Apache-2.0, 11,868 stars,
+`libneedle.a` and `needle.h` for macos-arm64, so it binds to Rust.
+
+**What it measured, on our own 22-tool registry**, 35 utterances, a fresh agent per utterance,
+against a 40-line keyword matcher:
+
+| | Needle 3.0.3 | keyword matcher |
+| --- | --- | --- |
+| Intent accuracy | 17/20 (85%) | 16/20 (80%) |
+| Dictation sentences that produced a call | **6 of 7** | 8 of 15 |
+| Off-topic sentences that produced a call | **8 of 8** | |
+| Two calls in one turn, in order | correct | cannot |
+| Latency p50 / RAM / cold start | 78 ms / 110 MB / 7.8 s first, 0.5 s cached | ~0 / 0 / 0 |
+
+**Why it is a dead end for the action path.** The confidence score cannot tell dictation from
+a command, and that is the one thing we need it to do:
+
+```
+threshold   intent kept   dictation acted
+   0.00       17/20            6/7
+   0.70       15/20            6/7
+   0.90       14/20            6/7
+```
+
+Every dictation sentence scored **0.97 to 1.00**. Raising the threshold to 0.90 removes none
+of them and costs three intent points, so the mechanism we would have designed the safety
+layer around carries no information about relevance. The failures land on write tools, and
+they are deterministic (three runs, identical output, identical confidence):
+
+```
+"Dear team, please review the deck before Friday."
+    -> send_message(contact="team", body="Review the deck")      conf 0.97
+"let's circle back on this next week"  -> toggle_dark_mode()      conf 1.00
+"we should probably hire another engineer" -> find_file()         conf 1.00
+```
+
+That first line is the exact failure D13 exists to prevent: dictation handed to an agent, and
+here it is a message sent to a team. Their page says a request no tool covers returns an empty
+list rather than a guess. On our registry it guessed 14 times out of 15.
+
+**Our trigger gate does not rescue it, and adds a failure of its own:**
+
+```
+"emma, take a screenshot"       -> take_note(text="emma")          conf 1.00
+"emma, please review the deck"  -> search_notes(query="deck")      conf 0.99
+```
+
+The wake word leaks into the arguments.
+
+**What is worth keeping, because it is not all bad.** Argument extraction is excellent when
+the tool is right: `payments-api`, `web-dashboard`, `10 minutes`, `Priya` with the body,
+`6pm`, `Postgres connection pooling`, `volume 20`. It is fast, offline, deterministic, free
+per call, and it returns two calls in one turn in order. The architecture it implies (local
+intent, local action selection, frontier model for the open tail) is still the right shape.
+The model just cannot be the gate.
+
+**The trap this spike nearly fell into**, recorded because it produces confident wrong
+verdicts: run 1 called `complete()` 35 times on **one** agent, so state carried between turns
+(an argument from the previous utterance reappeared in the next call). Run 1 said 75% intent
+and 15/15 false positives; the corrected method said 85% and a different failure pattern.
+Always a fresh agent per utterance, and always a baseline, because a keyword matcher scored
+80% on the same registry for nothing.
+
+**Revisit when** a fine-tune on our own registry, with dictation as explicit negatives, clears
+zero false positives on a 100-utterance dictation set. Their published lift is 18 to 36 points
+on the target distribution, so these base-model numbers are a floor rather than a ceiling. Two
+cautions from their docs: a tuned archive reports `confidence` as `None` (the calibration head
+is not updated by a fine-tune), and non-English calls were measured at 0.0 confidence, so the
+score is English-only in practice.
+
+**The scripts are kept at `docs/spikes/needle3/`** so the measurement can be repeated instead
+of believed.
+
 ---
 
 ## Numbers worth keeping
