@@ -1,71 +1,56 @@
 <div align="center">
 
-<img src="docs/readme/hero-dark.svg" alt="jev-use — voice to intent to any Mac app" width="840"/>
+<img src="docs/readme/hero-dark.png" alt="jev-use — repo standard · playbook · macOS tools" width="840"/>
 
 # jev-use
 
-**Voice-driven control layer for macOS**
+**Repo Standard · playbook home · macOS tools**
 
-`press a key · speak a goal · any app`
+`standing instructions for agents and humans`
 
 ![license](https://img.shields.io/badge/license-Apache--2.0-5b6169?labelColor=0a0a0a&style=flat-square)
 ![status](https://img.shields.io/badge/status-pre--alpha-5b6169?labelColor=0a0a0a&style=flat-square)
-![platform](https://img.shields.io/badge/platform-Apple%20Silicon%20Mac-5b6169?labelColor=0a0a0a&style=flat-square)
-![stack](https://img.shields.io/badge/stack-Rust%20AX-5b6169?labelColor=0a0a0a&style=flat-square)
+![platform](https://img.shields.io/badge/platform-macOS-5b6169?labelColor=0a0a0a&style=flat-square)
+![role](https://img.shields.io/badge/role-repo%20standard-5b6169?labelColor=0a0a0a&style=flat-square)
 
 </div>
 
-<img src="docs/readme/trust-strip.svg" alt="local first · any app · Apache-2.0" width="100%"/>
+> **This is the Repo Standard and playbook home — not a shipped product app.**
+> Pre-alpha. No marketing theater. Read before you touch a Coco repo.
 
-> **Speak a goal. The machine does it — across any Mac app, not just a browser.**
+<img src="docs/readme/local-first.png" alt="Repo Standard → Playbook → macOS tools" width="100%"/>
 
-Status: **pre-alpha.** The Accessibility observation layer is being ported to Rust.
-Nothing here is dogfood-ready yet; the working system still lives at
-`~/code/jev-computeruse` (see `reference/`).
+## What this repo is
 
-## The problem
+| Layer | What you get |
+| --- | --- |
+| **Repo Standard** | Standing instructions every agent and human follows across Coco repos — `docs/repo-playbook.html` |
+| **Playbook** | How we work: PR size, evidence, gates, hooks, docs authority |
+| **macOS tools** | Local tooling that lives beside the standard (AX / voice experiments) — **pre-alpha**, not a product surface |
 
-Three problems that look like one:
+If you came here looking for a downloadable Mac app: there isn’t one. The AX observation layer is still being ported to Rust. The working reference lives outside this tree (see `reference/`).
 
-| # | Problem | Today's cost |
-| --- | --- | --- |
-| 1 | **The model is the router.** Every agent run re-decides whether to use Jev, and can choose Playwright instead. | Prose in a config file, hoping it is followed |
-| 2 | **State is scattered across ~8 apps.** "What is payments-api doing" means opening an app, finding a thread, reading it. | Minutes per question, by hand |
-| 3 | **No single control surface.** Browser, editor, terminal, files, git — separate contexts. | Context-switch tax all day |
+## Start here
 
-Only problem 1 needs Jev. The rest is queries and routing. That distinction is the whole
-design: see `docs/prd.md`.
-
-## The shape
-
-```
-voice -> intent -> does a purpose-built capability exist?
-                       |
-                 yes --+-- no
-                  |        |
-          run it (~50 ms)  +--> JEV (0.5–2 s/step, any app, any screen)
-```
-
-Most questions are queries, not agent tasks. "Status on payments-api" is a SQLite read that
-takes about 50 ms. Making that an LLM call would be slower and worse. Jev's job is the
-**long tail** — anything without a built-in.
+1. Open [`docs/repo-playbook.html`](docs/repo-playbook.html) — the Repo Standard.
+2. Read [`AGENTS.md`](AGENTS.md) before any agent edit.
+3. Read [`CONTRIBUTING.md`](CONTRIBUTING.md) if you are a person.
+4. For the AX / voice workstream only: [`docs/prd.md`](docs/prd.md) (draft, owner-gated).
 
 ## Layout
 
 ```
-crates/jev-ax/       macOS Accessibility observation + execution (the port target)
-crates/jev-voice/    voice hook path
-docs/                prd, architecture, rules, design, tasks, memory
-.metagpt/            STATE.md, GATE.json, interview.md — where we are and what gate we are at
-reference/           points at the working Python system this is ported from
-.github/             CI, PR template
-docs/readme/         SpaceX/dark marketing assets
+docs/repo-playbook.html   Repo Standard (SoT for standing instructions)
+docs/                     prd, architecture, rules, design, tasks, memory
+crates/jev-ax/            macOS Accessibility port target (pre-alpha)
+crates/jev-voice/         voice hook path (pre-alpha)
+.metagpt/                 STATE.md, GATE.json, interview.md
+reference/                pointer to the working Python system
+.github/                  CI, PR template
+docs/readme/              SpaceX/dark README assets
 ```
 
 ## Working on this
-
-Read `AGENTS.md` first if you are an agent. Read `CONTRIBUTING.md` if you are a person.
-The short version:
 
 ```bash
 cargo test --workspace
@@ -73,8 +58,7 @@ cargo fmt --all
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-**Every change lands as a small PR with CI green.** No direct pushes to `main`. A PR
-without a passing run is not reviewable — see `.github/pull_request_template.md`.
+**Every change lands as a small PR with CI green.** No direct pushes to `main`.
 
 ## Keys: bring your own
 
