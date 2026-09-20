@@ -79,7 +79,7 @@ apps/
 
 ## 5. Dependencies
 
-Verified to exist and work on this machine, 2026-09-19:
+Verified on this machine, 2026-09-20:
 
 | Need | Crate | Version |
 | --- | --- | --- |
@@ -88,10 +88,29 @@ Verified to exist and work on this machine, 2026-09-19:
 | Mouse + keyboard events | `core-graphics` | 0.25.0 |
 | ObjC runtime | `objc2` | 0.6.4 |
 
-**Unknown, and the first task:** does `objc2-application-services` expose
-`AXUIElementCopyAttributeValue`, `AXUIElementCopyActionNames`,
-`AXUIElementSetMessagingTimeout`, and `AXValueGetValue`? Everything above rests on that
-answer. If it does not, the fallback is vendoring `accessibility-sys 0.2.0`.
+**Settled - T1 spike, 2026-09-20.** All four entry points exist and were **called
+successfully against five live apps**, not merely referenced. The dependency choice is
+final; the `accessibility-sys` fallback is dropped. See `docs/memory.md` D8 for the raw
+evidence.
+
+The crate's method names differ from the C function names, and these are the ones to
+write against:
+
+| C name | Rust name |
+| --- | --- |
+| `AXUIElementCopyAttributeValue` | `AXUIElement::copy_attribute_value` |
+| `AXUIElementCopyActionNames` | `AXUIElement::copy_action_names` |
+| `AXUIElementSetMessagingTimeout` | `AXUIElement::set_messaging_timeout` |
+| `AXValueGetValue` | `AXValue::value` |
+
+Four facts the spike established that the design could not have guessed, each of which
+will otherwise cost a compile cycle:
+
+1. The **`HIServices`** feature is required, or the entire AX module is gated out.
+2. It returns **`CFRetained<T>`**, not `objc2::rc::Retained<T>`, and `from_raw` takes a
+   `NonNull`.
+3. **`CFArray::value_at_index` returns a bare `*const c_void`**, so null checks are ours.
+4. **`AXError` is a newtype over `i32`** with PascalCase associated consts.
 
 `trycua/cua` keeps a production Rust AX implementation that is a useful reference for the
 calls, though it pins `objc2 0.5` and is not drop-in reusable.

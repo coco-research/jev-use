@@ -10,12 +10,13 @@
   "arch": "draft",
   "plan": "draft",
   "build": "blocked",
-  "blocked_by": "T1 - the objc2 spike. If the crate does not expose the four AX entry points, the dependency choice changes before any real code is written.",
+  "blocked_by": "Owner review. prd, arch and plan are drafted but unapproved, so build cannot start. T1 is DONE - the objc2 spike answered yes, so the dependency risk that used to block here is gone.",
   "ripwire": "n/a",
   "cartographer": "n/a",
   "notes": [
-    "prd, arch and plan are drafted from the interview and are awaiting owner review. The gate is at prd.",
-    "CI is green from the first commit: 9 tests, clippy clean, fmt clean.",
-    "The repo went public on 2026-09-20: Actions is free and unlimited for public repositories, and the private budget was exhausted. The sensitive parts were scrubbed first - private project names became generic examples, secret-store paths were genericised, and an absolute path became relative. Licensed Apache-2.0."
+    "T1 answered YES on 2026-09-20: objc2-application-services exposes all four AX entry points and they were called against five live apps. The accessibility-sys fallback is dropped. Evidence in docs/memory.md D8.",
+    "CI is green: 9 tests, clippy clean, fmt clean, on a real GitHub runner (public repo = free Actions).",
+    "The repo went public on 2026-09-20: Actions is free and unlimited for public repositories, and the private budget was exhausted. The sensitive parts were scrubbed first - private project names became generic examples, secret-store paths were genericised, and an absolute path became relative. Licensed Apache-2.0.",
+    "Unchanged: prd, arch and plan are still drafts awaiting owner review. The gate is at prd, and the next real task is T2."
   ]
 }
