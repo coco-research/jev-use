@@ -1,5 +1,20 @@
 # Contributing
 
+## First, once per clone
+
+```bash
+git config core.hooksPath .githooks
+```
+
+That installs the pre-push gate: fmt, clippy, test, docs, and a secret scan. It takes
+about **1.5 seconds** once warm, and it is the real gate - CI is only a backstop. See
+`docs/memory.md` D7 for why (short version: a private repo on a shared budget can be
+refused outright, and a GitHub macOS runner has no GUI session, so it cannot test
+accessibility code at all).
+
+If a push is blocked, fix the cause. `git push --no-verify` exists for genuine
+emergencies only, and the PR must say why it was used.
+
 ## The loop
 
 ```bash

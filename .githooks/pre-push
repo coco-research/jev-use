@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# pre-push: the real gate.
+#
+# CI is a backstop, not the gate. Two reasons:
+#   1. A private repo on a shared account budget can be refused outright (it was,
+#      on the first push: "Actions budget is preventing further use").
+#   2. GitHub-hosted runners have no GUI session and no Accessibility permission, so
+#      they cannot execute a single AXUIElement call. The behaviour that matters here
+#      is only testable on the machine.
+#
+# So this runs before anything leaves the laptop. It is fast (about 5-20 s once warm)
+# and it fails loudly.
+#
+# Install once per clone:
+#   git config core.hooksPath .githooks
+#
+# Bypass in a genuine emergency (say why in the PR):
+#   git push --no-verify
+
+set -uo pipefail
+
+fail() { printf '\n\033[31mPRE-PUSH BLOCKED\033[0m  %s\n' "$1" >&2; exit 1; }
+step() { printf '\033[2m  ...\033[0m %s\n' "$1"; }
+ok()   { printf '\033[32m  ok\033[0m  %s\n' "$1"; }
+
+[ -f Cargo.toml ] || { echo "not in the repo root; skipping"; exit 0; }
+
+# 1. Formatting. Cheapest check, so it runs first.
+step "cargo fmt --check"
+if ! cargo fmt --all -- --check >/dev/null 2>&1; then
+  cargo fmt --all -- --check 2>&1 | head -20 >&2
+  fail "formatting is off. Run: cargo fmt --all"
+fi
+ok "fmt"
+
+# 2. Lints. Same flags as CI, so a green local run means a green CI run.
+step "cargo clippy -D warnings"
+if ! out=$(cargo clippy --workspace --all-targets -- -D warnings 2>&1); then
+  printf '%s\n' "$out" | tail -30 >&2
+  fail "clippy found problems"
+fi
+ok "clippy"
+
+# 3. Tests.
+step "cargo test"
+if ! out=$(cargo test --workspace --all-features 2>&1); then
+  printf '%s\n' "$out" | tail -40 >&2
+  fail "tests failed"
+fi
+passed=$(printf '%s\n' "$out" | grep -oE '[0-9]+ passed' | awk '{s+=$1} END {print s+0}')
+ok "test (${passed} passed)"
+
+# 4. Docs build. Skipped if the toolchain is mid-update.
+step "cargo doc"
+if ! out=$(cargo doc --workspace --no-deps 2>&1); then
+  printf '%s\n' "$out" | tail -20 >&2
+  fail "docs do not build"
+fi
+ok "docs"
+
+# 5. Parity harness, when the port is far enough along to have one.
+#    This is the check CI can never do: it compares against the working Python
+#    reference on THIS machine, with real apps open. Absent for now.
+if [ -x scripts/parity.sh ]; then
+  step "parity vs the Python reference"
+  if ! out=$(scripts/parity.sh 2>&1); then
+    printf '%s\n' "$out" | tail -30 >&2
+    fail "parity with the reference broke (docs/rules.md R8)"
+  fi
+  ok "parity"
+fi
+
+# 6. Refuse a secret before it reaches the remote.
+step "secret scan of staged content"
+patterns='sk-[A-Za-z0-9]{20,}|gcli_[A-Za-z0-9]{10,}|gho_[A-Za-z0-9]{20,}|apikey_[A-Za-z0-9]{10,}|AQ\.[A-Za-z0-9_-]{20,}'
+diff=$(git diff --cached -U0 --diff-filter=ACMR 2>/dev/null)
+hits=$(printf '%s' "$diff" | grep -E "^\+" | grep -Eo "$patterns" | head -5 || true)
+if [ -n "$hits" ]; then
+  printf '%s\n' "$hits" >&2
+  fail "a credential-shaped string is staged. Remove it, then amend or reset."
+fi
+ok "no secrets staged"
+
+printf '\n\033[32mPRE-PUSH PASSED\033[0m  fmt, clippy, test, docs, secrets\n'

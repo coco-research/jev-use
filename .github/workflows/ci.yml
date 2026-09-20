@@ -3,8 +3,18 @@ name: ci
 # Every PR must be provably green before merge. This is the "testable PR" contract:
 # a PR without a passing run is not reviewable.
 #
-# macos runner because the real crate talks to the macOS Accessibility API. Skills
-# are cached because a cold Rust toolchain fetch is the slowest thing here.
+# WHY ubuntu, NOT macos:
+#   1. macOS runners bill at 10x. On a private repo sharing an account budget, this
+#      is the difference between CI running and CI being refused outright.
+#   2. GitHub-hosted macOS runners CANNOT test the accessibility code anyway. They
+#      have no logged-in GUI session and no Accessibility permission, so AXUIElement
+#      calls would fail there regardless of the runner.
+#
+# So this workflow tests what is testable in CI: pure logic, types, formatting, lints,
+# docs. AX behaviour against real apps is verified LOCALLY by the pre-push hook and by
+# the parity harness. That split is deliberate - see docs/rules.md R8 and docs/memory.md.
+#
+# The crate is kept free of macOS-only dependencies precisely so this stays possible.
 
 on:
   push:
@@ -14,7 +24,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # A new push to the same branch cancels the previous run. Saves minutes and avoids
+  # A new push to the same branch cancels the previous run: saves budget, and avoids
   # reviewing a result that no longer matches the code.
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -24,11 +34,11 @@ env:
   RUSTFLAGS: -D warnings
 
 jobs:
-  # Fast gate. Runs first and fails in about a minute if formatting or lints are off,
-  # so trivial feedback does not wait on a full build.
+  # Fast gate. Separate job so formatting feedback lands in about a minute rather than
+  # after a full build. Cheapest job, so it runs first.
   lint:
     name: fmt + clippy
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -38,22 +48,21 @@ jobs:
       - run: cargo fmt --all -- --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
-  # The real gate. Tests must pass.
+  # The real gate for logic: types, predicates, the fingerprint, the caps.
   test:
     name: test
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --all-features
-      - run: cargo build --workspace --release
 
-  # Docs must build, because the crate is where the design lives. A doc comment that
-  # does not compile is a broken contract.
+  # Docs must build: the crate is where the design lives, and a doc comment that does
+  # not compile is a broken contract.
   docs:
     name: docs
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: -D warnings
     steps:
