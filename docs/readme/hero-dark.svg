@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="640" viewBox="0 0 1600 640" role="img" aria-label="jev-use — voice to intent to any Mac app">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a0a"/>
+      <stop offset="55%" stop-color="#0e0e0f"/>
+      <stop offset="100%" stop-color="#121214"/>
+    </linearGradient>
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#5b6169" stop-opacity="0"/>
+      <stop offset="40%" stop-color="#9aa0a6" stop-opacity="0.55"/>
+      <stop offset="60%" stop-color="#e8eaed" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#5b6169" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="640" fill="url(#bg)"/>
+  <!-- faint grid -->
+  <g stroke="#1c1c1e" stroke-width="1" opacity="0.7">
+    <path d="M0 160 H1600 M0 320 H1600 M0 480 H1600"/>
+    <path d="M400 0 V640 M800 0 V640 M1200 0 V640"/>
+  </g>
+  <!-- two-arc mark (Direction B sibling) -->
+  <g fill="none" stroke="url(#arc)" stroke-width="3" stroke-linecap="round">
+    <path d="M520 340 C640 220, 960 220, 1080 340"/>
+    <path d="M560 380 C680 280, 920 280, 1040 380"/>
+  </g>
+  <text x="800" y="250" text-anchor="middle" fill="#f5f5f5" font-family="ui-sans-serif, system-ui, -apple-system, Helvetica, Arial" font-size="64" font-weight="600" letter-spacing="4">jev-use</text>
+  <text x="800" y="310" text-anchor="middle" fill="#9aa0a6" font-family="ui-sans-serif, system-ui, -apple-system, Helvetica, Arial" font-size="26" letter-spacing="2">voice → intent → any Mac app</text>
+  <text x="800" y="460" text-anchor="middle" fill="#5b6169" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="16" letter-spacing="3">PRE-ALPHA · AX RUST PORT · LOCAL</text>
+</svg>
