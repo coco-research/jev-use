@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The repo playbook</title>
+<style>
+:root{
+  --blue:#0A6CFF; --blue-deep:#0550C8; --soft:#E8F1FF;
+  --ink:#0B0F1A; --mut:#5B6B85; --ok:#12A150; --bad:#C2410C; --warn:#B45309;
+  --line:rgba(11,15,26,.09); --glass:rgba(255,255,255,.72); --r:22px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:clamp(14px,3.5vw,46px);
+  font:400 clamp(15px,1.05vw,16.5px)/1.62 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+  color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;
+  background:#F6F9FD;
+  background-image:
+    radial-gradient(1100px 520px at 6% -12%,#DCEBFF 0,rgba(220,235,255,0) 62%),
+    radial-gradient(900px 460px at 98% 2%,#EAF2FF 0,rgba(234,242,255,0) 58%);
+}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:clamp(14px,2.2vw,24px)}
+.wrap > *{min-width:0}
+header{display:grid;gap:10px}
+h1{margin:0;font-size:clamp(26px,5vw,42px);line-height:1.08;letter-spacing:-.03em;font-weight:680}
+h1 em{font-style:normal;color:var(--blue)}
+.lede{margin:0;font-size:clamp(15px,1.6vw,18.5px);color:#26314A;max-width:66ch}
+.card{
+  background:var(--glass);backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border:1px solid var(--line);border-radius:var(--r);
+  padding:clamp(15px,2.4vw,26px);box-shadow:0 10px 34px rgba(11,15,26,.055)
+}
+h2{margin:0 0 4px;font-size:clamp(17px,2.2vw,22px);letter-spacing:-.02em;font-weight:660}
+h2 .n{display:inline-flex;align-items:center;justify-content:center;width:1.5em;height:1.5em;
+  margin-right:.5em;border-radius:9px;background:var(--blue);color:#fff;font-size:.72em;font-weight:700;vertical-align:.08em}
+.sub{margin:0 0 14px;color:var(--mut);font-size:clamp(13.5px,1.5vw,15px);max-width:72ch}
+code,.mono{font:500 .87em/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
+code{background:#EDF2FA;color:#1B4DA8;padding:2px 7px;border-radius:7px;word-break:break-word}
+pre{margin:10px 0 0;padding:14px 16px;border-radius:14px;overflow-x:auto;max-width:100%;
+  background:#0C1220;color:#DCE7F7;font:500 12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}
+pre .c{color:#7C8CA8} pre .g{color:#7BE0A8} pre .b{color:#7FB6FF} pre .y{color:#FFD479}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:6px;min-width:0}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+th{text-align:left;font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);
+  font-weight:680;padding:0 12px 9px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:11px 12px 11px 0;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:620}
+.ok{color:var(--ok);font-weight:700} .no{color:var(--bad);font-weight:700} .mid{color:var(--warn);font-weight:700}
+.files{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,290px),1fr));margin-top:8px}
+.f{border:1px solid var(--line);border-radius:16px;padding:14px 16px;background:#fff}
+.f.core{border-color:rgba(10,108,255,.3);background:linear-gradient(180deg,#F3F8FF,#fff)}
+.f .nm{font-weight:680;font-size:14.5px}
+.f .q{font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:680;color:var(--mut);margin-top:2px}
+.f .d{font-size:13.5px;color:#2C3750;margin-top:7px}
+.f .t{font-size:12.5px;color:var(--mut);margin-top:7px;padding-top:7px;border-top:1px solid var(--line)}
+.bad3{border-color:rgba(194,65,12,.3);background:linear-gradient(180deg,#FEF6F2,#fff)}
+.chain{display:grid;gap:0;margin-top:6px}
+.step{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;padding:13px 0;
+  border-bottom:1px dashed var(--line);min-width:0}
+.step:last-child{border-bottom:0}
+.step > *{min-width:0}
+.dot{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+  background:var(--soft);color:var(--blue);font-weight:700;font-size:13.5px;border:1px solid rgba(10,108,255,.2)}
+.step .t{font-weight:620;letter-spacing:-.01em}
+.step .d{color:var(--mut);font-size:13.5px;margin-top:2px}
+ul{margin:8px 0 0;padding-left:19px;font-size:14px;color:#2C3750}
+li{margin:4px 0}
+.note{font-size:13px;color:var(--mut);margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.note b{color:#26314A}
+.callout{border-radius:16px;padding:14px 16px;border:1px solid rgba(194,65,12,.24);
+  background:linear-gradient(180deg,#FEF6F2,#fff);font-size:14px;color:#2C3750;margin-top:12px}
+.callout b{color:#8A2E10}
+@media (max-width:560px){.step{grid-template-columns:1fr;gap:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Every repo you own is missing<br>the same <em>three</em> files.</h1>
+  <p class="lede">I scanned all seven. The documents that capture <b>decisions</b>, <b>rules</b>, and <b>current state</b> exist in <b>zero</b> of them. Those are exactly the three that let an agent pick up where the last one stopped.</p>
+</header>
+
+<div class="card">
+  <h2><span class="n">1</span>What the scan actually found</h2>
+  <p class="sub">Across <code>~/code/*</code> and your product repos, excluding the new one.</p>
+  <div class="tw">
+    <table>
+      <thead><tr><th>File</th><th>Where it exists</th><th>What its absence costs</th></tr></thead>
+      <tbody>
+        <tr><td>prd.md</td><td class="ok">5 repos</td><td>Scope drifts. Nobody can say what is out of bounds.</td></tr>
+        <tr><td>architecture.md</td><td class="ok">13 repos</td><td>Rarely missing. Mostly fine.</td></tr>
+        <tr><td>design.md</td><td class="mid">2 repos</td><td>UI gets re-decided on every pass.</td></tr>
+        <tr><td><b>rules.md</b></td><td class="no">0 repos</td><td><b>Invariants live in someone's head.</b> An agent breaks one and calls it an improvement.</td></tr>
+        <tr><td><b>tasks.md</b></td><td class="no">0 repos</td><td>Every session re-derives what to do next from the code.</td></tr>
+        <tr><td><b>memory.md</b></td><td class="no">0 repos</td><td><b>Dead ends get walked twice.</b> The same hour, again.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout">
+    <b>And AGENTS.md is in 2 of 7 code repos.</b> It is the one file an agent reads first. A repo without it makes every agent start from zero, every time.
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="n">2</span>The test that tells you whether a document should exist</h2>
+  <p class="sub">Not "is it nice to have". This one question:</p>
+  <div class="callout" style="border-color:rgba(10,108,255,.3);background:linear-gradient(180deg,#F3F8FF,#fff)">
+    <b style="color:#0550C8">Delete it. What breaks?</b><br>
+    If nothing breaks, it does not belong. If the next session wastes an hour, it belongs and it is missing.
+  </div>
+  <div class="files">
+    <div class="f core">
+      <div class="nm">prd.md</div><div class="q">what &amp; why</div>
+      <div class="d">The problem, the non-goals, the phases, the measured constraints.</div>
+      <div class="t">Breaks without it: scope. Someone builds group D before group A.</div>
+    </div>
+    <div class="f core">
+      <div class="nm">rules.md</div><div class="q">the laws</div>
+      <div class="d">Invariants, each with the <b>measurement</b> behind it. Not style preferences.</div>
+      <div class="t">Breaks without it: an agent removes a timeout because it "looks unnecessary", and the process hangs.</div>
+    </div>
+    <div class="f core">
+      <div class="nm">memory.md</div><div class="q">decisions &amp; dead ends</div>
+      <div class="d">Chosen, why, rejected, why. Plus: what did not work.</div>
+      <div class="t">Breaks without it: the same wrong hypothesis gets tested again next week.</div>
+    </div>
+    <div class="f">
+      <div class="nm">tasks.md</div><div class="q">what is in flight</div>
+      <div class="d">Now, next, blocked, done. With PR numbers.</div>
+      <div class="t">Breaks without it: "what were we doing?" is answered by reading code.</div>
+    </div>
+    <div class="f">
+      <div class="nm">architecture.md</div><div class="q">how it fits</div>
+      <div class="d">The layers and the boundary between them.</div>
+      <div class="t">Breaks without it: new code lands in the wrong layer.</div>
+    </div>
+    <div class="f">
+      <div class="nm">design.md</div><div class="q">what it looks like</div>
+      <div class="d">Tokens, spacing, states, and what is banned.</div>
+      <div class="t">Breaks without it: the UI is different on every pass.</div>
+    </div>
+  </div>
+  <div class="note"><b>AGENTS.md is not in the list above because it is not a document, it is a routing table.</b> It says where the other six live and which wins when they disagree. Keep it under 100 lines.</div>
+</div>
+
+<div class="card">
+  <h2><span class="n">3</span>Four cadences. Most repos have one, and it is the wrong one.</h2>
+  <p class="sub">Each is a different length of memory. Skipping a short one is cheap; skipping a long one is how a repo rots.</p>
+  <div class="chain">
+    <div class="step"><div class="dot">1</div><div>
+      <div class="t">Every commit — 0 seconds, enforced by a hook</div>
+      <div class="d">The gate. fmt, lint, test, secret scan. If it is not automated it will be skipped. <code>~/code/jev-use/.githooks/pre-push</code> is the pattern: 1.5 s, installed once.</div>
+    </div></div>
+    <div class="step"><div class="dot">2</div><div>
+      <div class="t">Every PR — 60 seconds, by hand</div>
+      <div class="d">Update <code>tasks.md</code> and, if a decision was made, <code>memory.md</code>. This is the entire reason PRs exist rather than commits on main: <b>a PR is where a change becomes explainable.</b></div>
+    </div></div>
+    <div class="step"><div class="dot">3</div><div>
+      <div class="t">Weekly — 5 minutes, in tasks.md only</div>
+      <div class="d">Move done to Done with the PR number. Re-rank. <b>Delete anything that has been "next" for three weeks.</b> That last one matters more than the others.</div>
+    </div></div>
+    <div class="step"><div class="dot">4</div><div>
+      <div class="t">Monthly — 20 minutes, read the rules against the code</div>
+      <div class="d">Is every invariant in <code>rules.md</code> still enforced by a test? Prune <code>memory.md</code> of anything now obvious. Check <code>architecture.md</code> still matches <code>find . -name '*.rs'</code>.</div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="n">4</span>The structure. Same for every repo.</h2>
+  <pre><span class="c">repo/</span>
+├── README.md            <span class="c">what it is, how to run it. 60 lines max.</span>
+├── AGENTS.md            <span class="c">the routing table. where everything lives.</span>
+├── CONTRIBUTING.md      <span class="c">the loop, branch naming, PR size, cadences.</span>
+├── LICENSE
+├── .githooks/           <span class="c">COMMITTED hooks. core.hooksPath points here.</span>
+│   └── pre-push
+├── .github/
+│   ├── workflows/ci.yml
+│   └── pull_request_template.md
+├── docs/
+│   ├── <span class="b">prd.md</span>             <span class="c">what &amp; why</span>
+│   ├── <span class="b">architecture.md</span>      <span class="c">how it fits</span>
+│   ├── <span class="b">rules.md</span>            <span class="c">the laws + the measurement behind each</span>
+│   ├── <span class="b">design.md</span>           <span class="c">UI, tokens, banned patterns</span>
+│   ├── <span class="b">tasks.md</span>            <span class="c">the live board</span>
+│   └── <span class="b">memory.md</span>           <span class="c">decisions and dead ends</span>
+├── .metagpt/
+│   ├── STATE.md         <span class="c">starts with "Next action:". machine-and-human readable.</span>
+│   ├── GATE.json        <span class="c">gate state per stage. one glance, no reading.</span>
+│   └── interview.md     <span class="c">what was asked and answered, before design</span>
+├── reference/           <span class="c">pointers to what this was ported from. NOT vendored.</span>
+└── src or crates/</pre>
+  <div class="note"><b>Why <code>.githooks/</code> and not <code>.git/hooks/</code>:</b> the latter is never committed, so it exists on one machine and dies with the clone. Commit the hooks and set <code>core.hooksPath</code> once.</div>
+</div>
+
+<div class="card">
+  <h2><span class="n">5</span>Five rules that make a repo work for agents, not just people</h2>
+  <p class="sub">Your repos are read by agents more often than by humans now. That changes what "well maintained" means.</p>
+  <ul>
+    <li><b>A stale doc is worse than a missing one.</b> A missing doc costs a question. A stale one gets acted on. A PR that makes a doc wrong must fix it in the same PR.</li>
+    <li><b>Evidence, not assertion.</b> "Tests pass" is a claim. The command and its output is a fact. Every PR template section exists to force the second.</li>
+    <li><b>One owner per fact.</b> Two documents must never both be authoritative for the same thing. The table in AGENTS.md says which wins.</li>
+    <li><b>Small PRs, because context is finite.</b> A 400-line diff cannot be reviewed by an agent holding 12 other things. A PR should be reviewable in two minutes.</li>
+    <li><b>Record the dead end.</b> The cheapest and most-skipped thing in any repo. One sentence saves the next agent an hour. <code>~/.pi/agent/AGENTS.md</code> got five commands moved from line 286 to line 7 for exactly this reason.</li>
+  </ul>
+</div>
+
+<div class="card">
+  <h2><span class="n">6</span>What I would do Monday, in order</h2>
+  <p class="sub">Cheapest first. Do not do all of this at once.</p>
+  <div class="chain">
+    <div class="step"><div class="dot">1</div><div>
+      <div class="t">Add <code>rules.md</code> to the two repos that actually matter</div>
+      <div class="d"><code>coco</code> and <code>coco-hermes</code>. Ten bullets each, each with a measurement. This is the highest-value file in any repo and you have zero of them.</div>
+    </div></div>
+    <div class="step"><div class="dot">2</div><div>
+      <div class="t">Add <code>AGENTS.md</code> to the five repos missing it</div>
+      <div class="d">Under 100 lines. Not rules — a map. Where the docs are, which wins, what to read first.</div>
+    </div></div>
+    <div class="step"><div class="dot">3</div><div>
+      <div class="t">Copy <code>.githooks/pre-push</code> into every repo</div>
+      <div class="d">One file, one <code>git config</code> line. It makes "testable PR" true instead of aspirational, and it costs no CI budget.</div>
+    </div></div>
+    <div class="step"><div class="dot">4</div><div>
+      <div class="t">Start <code>memory.md</code> in one repo, not six</div>
+      <div class="d">Pick the one you touch most. Write three dead ends you already know. Watch whether it saves you time before rolling it out.</div>
+    </div></div>
+  </div>
+  <div class="note"><b>The thing to resist:</b> doing all six files in six repos in one afternoon. Documents written as an exercise are stale within a week. Write the one that removes a pain you felt this week.</div>
+</div>
+
+<div class="card">
+  <h2>If you remember one thing</h2>
+  <p class="sub" style="margin-bottom:0">
+    <b>Maintenance is not tidying. It is keeping the memory the next session depends on.</b> A human forgets and asks. An agent forgets and <i>guesses</i> — confidently, and in your repo. The six documents are not bureaucracy; they are the difference between an agent that continues your work and one that re-derives it badly.
+  </p>
+</div>
+
+</div>
+</body>
+</html>
