@@ -431,13 +431,14 @@ is recorded in a test rather than papered over.
 
 **Switched on, and verified as far as a machine can verify it:** the owner approved the
 flip, so Coco Voice now runs `paste_method: external_script` with
-`external_script_path: $HOME/code/jev-use/scripts/voice-hook`. The app's own
+`external_script_path: …/products/jev-use/scripts/voice-hook` (at the time of writing,
+`~/code/jev-use/…`; the repo moved on 2026-09-20 - see D17). The app's own
 log confirms it loaded the new settings, not just that the file says so:
 
 ```
 [..][coco_voice_lib::settings][DEBUG] Loaded settings: AppSettings { ..
   paste_method: ExternalScript, ..
-  external_script_path: Some("$HOME/code/jev-use/scripts/voice-hook") }
+  external_script_path: Some("…/products/jev-use/scripts/voice-hook") }
 ```
 
 Before the flip, every real dictation in that log read `Using paste method: CtrlV` - which
@@ -646,6 +647,39 @@ be green about compiling and explicit about not having looked.
 **One open item, for a human:** grant `$HOME/actions-runner-jevu/bin/Runner.Listener` in
 System Settings -> Privacy & Security -> Accessibility. The moment it is granted, the same
 job starts running the live AX tests on real apps, with no change to the workflow.
+
+### D17 - One checkout, in products/ (2026-09-20)
+
+**The repo moved from `~/code/jev-use` to
+`~/Rijul Kalra/Coco Research/products/jev-use`, and the old directory is gone.** Not a
+tidy-up: the owner asked for the products folder to be the one place work lives, and the
+handoff had already flagged the reason - **two checkouts of one repo is how two agents end
+up editing different copies of the same file.**
+
+**What the move actually required** (this is the list to check if a path ever moves again):
+
+| Dependency | Action |
+| --- | --- |
+| CoCo Voice `external_script_path` | Repointed, then **proved** - the app's own log shows the new path loaded, and a real paste landed byte-identical through the wrapper under a GUI-like minimal environment (`env -i`, `PATH=/usr/bin:/bin`) in 0.17 s |
+| `~/.pi/agent/AGENTS.md` | Pointer to `docs/handoff.md` repointed |
+| `~/code/jev-use` | Removed (moved to the Trash, not deleted - recoverable if something was missed) |
+| The self-hosted runner | Nothing to do: it checks out into `actions-runner-jevu/_work/`, not the repo |
+
+**Not required, and worth knowing:** `voice.driver` in the settings points at
+`~/.local/bin/jev-use`, which is the *Python reference*, not this repo. The hook binary is
+`~/.local/bin/jev-voice-hook`. So the move touched **one** machine-level path, not three.
+
+**Two things the move surfaced, both worth keeping:**
+
+1. **A path with spaces is fine but must be quoted.** The app runs the script through
+   `Command::new(path)` - no shell - so spaces are harmless there; every script of ours that
+   references it must quote it.
+2. **The first end-to-end paste test after the move FAILED**, and the cause was the test,
+   not the product: it created a new TextEdit document and pasted 0.17 s later, before the
+   document was ready. Verified by isolating the halves (the clipboard *did* receive the
+   text; a standalone Cmd+V *did* land) and by re-running the identical test, which passed.
+   A flaky test that fails once in three runs is worth a sentence in the memory rather than
+   a shrug.
 
 ## Dead ends - do not repeat these
 
