@@ -1044,6 +1044,91 @@ of believed.
 
 ---
 
+### X7 - The reference raises before Jev's first action, twice (2026-09-27)
+
+`~/code/jev-computeruse` is the specification (R8), and on 2026-09-27 it could not complete a
+single desktop goal. Not one app, not one goal: **any** goal, in **any** app whose tree holds a
+popupbutton or a menubutton. Two crashes, one behind the other, so fixing the first made the
+second appear and the symptom looked unchanged.
+
+**Crash 1 - a select action with no `value`.**
+
+`jev_ultrafast/model.py:76`, in `action_space()`:
+
+```python
+element["options"].append({"index": target, "label": action["label"],
+                           "value": action["value"]})
+```
+
+`action["value"]` is a hard index. `reference/vendor/ax.py:331-332` emits `value` only when
+the element has one (`if value:`), and the Rust port copies that faithfully at
+`crates/jev-ax/examples/walk.rs:127`. An `AXPopUpButton` whose `AXValue` is empty therefore
+raises `KeyError: 'value'` before Jev is ever asked anything.
+
+Two lines above, the same function guards the same field the safe way:
+
+```python
+element["value"] = action.get("current_value", "")
+```
+
+`value` is the one that was missed, which is what makes this look like an unfinished refactor
+rather than a new bug.
+
+Measured, four goals across three apps, all `KeyError: 'value'` at that line: PI-Desktop
+("collapse the sidebar", twice), Finder ("click the Applications item in the sidebar"). Google
+Chrome never reaches it, because it hides its page from the accessibility tree (X1) so no
+select action is produced at all.
+
+`value` and `options` are write-only in `model.py`: `options` is created at :65, **its length**
+is read at :75, and `value` is never read. So `""` cannot change a decision.
+
+**Crash 2 - the honest "nothing to click" answer crashes the printer.**
+
+Once crash 1 is fixed, the next line a user sees is:
+
+```
+KeyError: 'confidence'
+```
+
+`jev_desktop/agent.py:61` returns a row carrying `step`, `status`, `state` and `detail` for the
+case where the screen has **no addressable elements**, and no `confidence`. The CLI printer in
+`bin/jev-use` then indexes it directly:
+
+```python
+head = f"  {row['step']:2d} {mark} {row.get('operation','?'):<10} {row['confidence']:.2f}"
+```
+
+Every neighbouring key on that line uses `.get()`. `confidence` does not. So the correct answer
+to "there is nothing to click" is a traceback.
+
+Note the shape of the trap, because it cost real time: fixing crash 1 moved the failure one
+frame later and the visible symptom was identical, which reads as "the fix did not work".
+
+Also note that supplying a **string** to satisfy that `:.2f` raises
+`ValueError: Unknown format code 'f' for object of type 'str'` one frame later, which is the
+same trap a third time. It has to be a float.
+
+**What fixed it here, and why it is not upstream.** `jev_ultrafast` is
+`browser-use/jev-ultrafast`, a third-party public repository this machine has **READ**-only
+access to, and it is the file `reference/PINNED.json` pins by sha256 with `scripts/parity`
+checking both copies before it runs. Editing it would break the pin. So the same move
+`jev-browse` already makes for its provider URL was applied: a runtime patch in
+`jev_desktop/_select_value_fix.py`, self-contained and env-gated
+(`JEV_FIX_SELECT_VALUE`, `JEV_FIX_BLOCKED_ROW`).
+
+**The import order in that shim is load-bearing and was measured, not reasoned about.**
+`jev_desktop/__init__.py` must import the shim **after** `.agent`, because `agent.py` stubs
+around `jev_ultrafast/__init__.py` before importing `jev_ultrafast.model`. Imported first, the
+shim's own import fails, `_patch` returns silently, and the result is the worst outcome
+available: `patched: False`, no error, and the crash still happening.
+
+**This belongs in the port.** Both fixes are one line each in files this repo owns: the
+`model.py:76` call is upstream's, and the printer is `bin/jev-use`. Until they land, the desktop
+half of the computer-use policy cannot drive anything.
+
+---
+
+
 ## Numbers worth keeping
 
 Recorded 2026-09-19, M1 / 16 GB / macOS 26.5.2. **These are what "parity" means.**
